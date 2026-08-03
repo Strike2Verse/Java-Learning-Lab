@@ -6,18 +6,18 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **None yet**  
-Next topic: **[🟡] Basics of Java**
+Latest completed topic: **[✅] Basics of Java**  
+Next topic: **[🟡] Control Flow**
 
 ## 🧭 Roadmap Tracker
 
-## 🧱 [🟡] 1. Basics of Java
+## 🧱 [✅] 1. Basics of Java
 
-- [🟡] Variables
-- [🟡] Data Types
-- [🟡] Operators
-- [🟡] Type Casting
-- [🟡] Input/Output (Scanner, System.out)
+- [✅] Variables
+- [✅] Data Types
+- [✅] Operators
+- [✅] Type Casting
+- [✅] Input/Output (Scanner, System.out)
 
 ## 🔀 [🟡] 2. Control Flow
 
