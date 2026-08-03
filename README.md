@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **Getting started**  
-Next focus: **[🟡] Basics of Java**
+Current milestone: **[✅] Basics of Java completed**  
+Next focus: **[🟡] Control Flow**
 
 ## 📂 Repository Structure
 
@@ -53,7 +53,16 @@ Future folders will be added only when the learning path needs them.
 
 ## ✅ Completed Work
 
-No topics completed yet — work will be added here as each session finishes.
+### Basics of Java
+
+- Variables
+- Data Types
+- Operators
+- Type Casting
+- Input and Output with `Scanner` and `System.out`
+
+Code: [Code/01-basics-of-java](Code/01-basics-of-java)  
+Notes: [Explanations/01-basics-of-java](Explanations/01-basics-of-java)
 
 ## 🗺️ Learning Roadmap
 
@@ -67,6 +76,16 @@ The repository currently tracks these eight sections. More sections will be adde
 6. File Handling
 7. Error Handling and Exceptions
 8. Object-Oriented Programming (OOP)
+
+## ▶️ Running An Example
+
+Open a topic folder, compile the Java file, then run the class.
+
+```bash
+cd Code/01-basics-of-java/03-operators
+javac Operators.java
+java Operators
+```
 
 ## 💬 Feedback, Suggestions, And Corrections
 
