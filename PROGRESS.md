@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Basics of Java**  
-Next topic: **[🟡] Control Flow**
+Latest completed topic: **[✅] Control Flow**  
+Next topic: **[🟡] Methods and Packages**
 
 ## 🧭 Roadmap Tracker
 
@@ -19,11 +19,11 @@ Next topic: **[🟡] Control Flow**
 - [✅] Type Casting
 - [✅] Input/Output (Scanner, System.out)
 
-## 🔀 [🟡] 2. Control Flow
+## 🔀 [✅] 2. Control Flow
 
-- [🟡] Conditional Statements (if, else if, else, switch)
-- [🟡] Loops (for, while, do-while, enhanced for)
-- [🟡] Loop Control Statements (break, continue)
+- [✅] Conditional Statements (if, else if, else, switch)
+- [✅] Loops (for, while, do-while, enhanced for)
+- [✅] Loop Control Statements (break, continue)
 
 ## 🧩 [🟡] 3. Methods and Packages
 
