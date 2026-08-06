@@ -37,32 +37,18 @@ public class ConditionalStatements {
         String dayName;
 
         // switch checks "day" against each case one by one.
-        // break stops it from falling through into the next case.
+        // Arrow syntax (->) runs only the matched case, automatically —
+        // no break needed, and no risk of accidentally falling through
+        // into the next case.
         switch (day) {
-            case 1:
-                dayName = "Monday";
-                break;
-            case 2:
-                dayName = "Tuesday";
-                break;
-            case 3:
-                dayName = "Wednesday";
-                break;
-            case 4:
-                dayName = "Thursday";
-                break;
-            case 5:
-                dayName = "Friday";
-                break;
-            case 6:
-                dayName = "Saturday";
-                break;
-            case 7:
-                dayName = "Sunday";
-                break;
-            default:
-                // runs only if "day" doesn't match any case above
-                dayName = "Invalid day";
+            case 1 -> dayName = "Monday";
+            case 2 -> dayName = "Tuesday";
+            case 3 -> dayName = "Wednesday";
+            case 4 -> dayName = "Thursday";
+            case 5 -> dayName = "Friday";
+            case 6 -> dayName = "Saturday";
+            case 7 -> dayName = "Sunday";
+            default -> dayName = "Invalid day"; // runs only if nothing above matched
         }
 
         System.out.println("Day number: " + day);

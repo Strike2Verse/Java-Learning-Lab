@@ -24,6 +24,8 @@ if (condition1) {
 Useful when checking one variable against many exact values — cleaner than a
 long `if / else if` chain.
 
+### Classic syntax
+
 ```java
 switch (value) {
     case 1:
@@ -41,6 +43,23 @@ switch (value) {
 - Without `break`, Java keeps running every case below the matched one
   (called "fall-through") until it hits a `break` or reaches the end.
 - `default` behaves like `else` — it runs if nothing matches.
+
+### Arrow syntax (Java 14+, preferred)
+
+```java
+switch (value) {
+    case 1 -> // code
+    case 2 -> // code
+    default -> // code if nothing matched
+}
+```
+
+- No `break` needed — each case only runs its own code, automatically.
+- Removes the risk of accidentally forgetting a `break` and causing
+  fall-through.
+- This is the modern, preferred style, and the one used in the practice
+  program below.
+
 - `switch` works with `int`, `char`, `String`, `enum`, and a few wrapper
   types — not just numbers.
 
