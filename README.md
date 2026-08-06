@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Control Flow completed**  
-Next focus: **[🟡] Methods and Packages**
+Current milestone: **[✅] Methods and Packages completed**  
+Next focus: **[🟡] Data Structures**
 
 ## 📂 Repository Structure
 
@@ -72,6 +72,16 @@ Notes: [Explanations/01-basics-of-java](Explanations/01-basics-of-java)
 
 Code: [Code/02-control-flow](Code/02-control-flow)  
 Notes: [Explanations/02-control-flow](Explanations/02-control-flow)
+
+### Methods and Packages
+
+- Defining and Calling Methods
+- Method Overloading, Varargs, Return Values
+- Lambda Expressions (intro)
+- Packages and Imports
+
+Code: [Code/03-methods-and-packages](Code/03-methods-and-packages)  
+Notes: [Explanations/03-methods-and-packages](Explanations/03-methods-and-packages)
 
 ## 🗺️ Learning Roadmap
 
