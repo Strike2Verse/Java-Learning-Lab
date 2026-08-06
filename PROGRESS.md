@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Control Flow**  
-Next topic: **[🟡] Methods and Packages**
+Latest completed topic: **[✅] Methods and Packages**  
+Next topic: **[🟡] Data Structures**
 
 ## 🧭 Roadmap Tracker
 
@@ -25,12 +25,12 @@ Next topic: **[🟡] Methods and Packages**
 - [✅] Loops (for, while, do-while, enhanced for)
 - [✅] Loop Control Statements (break, continue)
 
-## 🧩 [🟡] 3. Methods and Packages
+## 🧩 [✅] 3. Methods and Packages
 
-- [🟡] Defining and Calling Methods
-- [🟡] Method Overloading, Varargs, Return Values
-- [🟡] Lambda Expressions (intro)
-- [🟡] Packages and Imports
+- [✅] Defining and Calling Methods
+- [✅] Method Overloading, Varargs, Return Values
+- [✅] Lambda Expressions (intro)
+- [✅] Packages and Imports
 
 ## 🗂️ [🟡] 4. Data Structures
 
