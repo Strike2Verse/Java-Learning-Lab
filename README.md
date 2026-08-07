@@ -28,6 +28,7 @@ Next focus: **[🟡] Data Structures**
 ├── Code/                 # Runnable Java programs organized by topic
 ├── Explanations/         # Markdown explanations for each topic
 ├── .gitignore            # Files and folders Git should ignore
+├── CLAUDE.md             # AI usage disclosure notes
 ├── PROGRESS.md           # Detailed roadmap and progress tracker
 └── README.md             # Main repository overview
 ```
