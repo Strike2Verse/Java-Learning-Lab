@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Methods and Packages completed**  
-Next focus: **[🟡] Data Structures**
+Current milestone: **[✅] Data Structures completed**  
+Next focus: **[🟡] String Manipulation**
 
 ## 📂 Repository Structure
 
@@ -83,6 +83,18 @@ Notes: [Explanations/02-control-flow](Explanations/02-control-flow)
 
 Code: [Code/03-methods-and-packages](Code/03-methods-and-packages)  
 Notes: [Explanations/03-methods-and-packages](Explanations/03-methods-and-packages)
+
+### Data Structures
+
+- Arrays (1D, 2D)
+- ArrayList
+- LinkedList
+- HashSet / TreeSet
+- HashMap / TreeMap
+- Stream operations on collections (map, filter, collect)
+
+Code: [Code/04-data-structures](Code/04-data-structures)  
+Notes: [Explanations/04-data-structures](Explanations/04-data-structures)
 
 ## 🗺️ Learning Roadmap
 

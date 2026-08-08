@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Methods and Packages**  
-Next topic: **[🟡] Data Structures**
+Latest completed topic: **[✅] Data Structures**  
+Next topic: **[🟡] String Manipulation**
 
 ## 🧭 Roadmap Tracker
 
@@ -32,14 +32,14 @@ Next topic: **[🟡] Data Structures**
 - [✅] Lambda Expressions (intro)
 - [✅] Packages and Imports
 
-## 🗂️ [🟡] 4. Data Structures
+## 🗂️ [✅] 4. Data Structures
 
-- [🟡] Arrays (1D, 2D)
-- [🟡] ArrayList
-- [🟡] LinkedList
-- [🟡] HashSet / TreeSet
-- [🟡] HashMap / TreeMap
-- [🟡] Stream operations on collections (map, filter, collect)
+- [✅] Arrays (1D, 2D)
+- [✅] ArrayList
+- [✅] LinkedList
+- [✅] HashSet / TreeSet
+- [✅] HashMap / TreeMap
+- [✅] Stream operations on collections (map, filter, collect)
 
 ## 🔤 [🟡] 5. String Manipulation
 
