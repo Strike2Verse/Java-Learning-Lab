@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Data Structures**  
-Next topic: **[🟡] String Manipulation**
+Latest completed topic: **[✅] String Manipulation**  
+Next topic: **[🟡] File Handling**
 
 ## 🧭 Roadmap Tracker
 
@@ -41,13 +41,13 @@ Next topic: **[🟡] String Manipulation**
 - [✅] HashMap / TreeMap
 - [✅] Stream operations on collections (map, filter, collect)
 
-## 🔤 [🟡] 5. String Manipulation
+## 🔤 [✅] 5. String Manipulation
 
-- [🟡] String Operations
-- [🟡] String Methods
-- [🟡] StringBuilder / StringBuffer
-- [🟡] String Formatting (String.format, text blocks)
-- [🟡] Working with Regular Expressions (java.util.regex)
+- [✅] String Operations
+- [✅] String Methods
+- [✅] StringBuilder / StringBuffer
+- [✅] String Formatting (String.format, text blocks)
+- [✅] Working with Regular Expressions (java.util.regex)
 
 ## 📁 [🟡] 6. File Handling
 
