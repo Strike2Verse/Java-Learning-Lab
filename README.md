@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Data Structures completed**  
-Next focus: **[🟡] String Manipulation**
+Current milestone: **[✅] String Manipulation completed**  
+Next focus: **[🟡] File Handling**
 
 ## 📂 Repository Structure
 
@@ -95,6 +95,17 @@ Notes: [Explanations/03-methods-and-packages](Explanations/03-methods-and-packag
 
 Code: [Code/04-data-structures](Code/04-data-structures)  
 Notes: [Explanations/04-data-structures](Explanations/04-data-structures)
+
+### String Manipulation
+
+- String Operations
+- String Methods
+- StringBuilder / StringBuffer
+- String Formatting (String.format, text blocks)
+- Working with Regular Expressions (java.util.regex)
+
+Code: [Code/05-string-manipulation](Code/05-string-manipulation)  
+Notes: [Explanations/05-string-manipulation](Explanations/05-string-manipulation)
 
 ## 🗺️ Learning Roadmap
 
