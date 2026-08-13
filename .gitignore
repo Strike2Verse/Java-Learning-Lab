@@ -22,3 +22,10 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Generated output from File Handling practice programs
+# (created when the programs are run — not part of the learning content itself)
+output.txt
+legacy-output.txt
+data.csv
+data.json

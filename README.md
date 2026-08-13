@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] String Manipulation completed**  
-Next focus: **[🟡] File Handling**
+Current milestone: **[✅] File Handling completed**  
+Next focus: **[🟡] Error Handling and Exceptions**
 
 ## 📂 Repository Structure
 
@@ -106,6 +106,15 @@ Notes: [Explanations/04-data-structures](Explanations/04-data-structures)
 
 Code: [Code/05-string-manipulation](Code/05-string-manipulation)  
 Notes: [Explanations/05-string-manipulation](Explanations/05-string-manipulation)
+
+### File Handling
+
+- Reading and Writing Files (Text, CSV, JSON)
+- Working with File Paths (java.nio.file.Path)
+- Exception Handling in File Operations
+
+Code: [Code/06-file-handling](Code/06-file-handling)  
+Notes: [Explanations/06-file-handling](Explanations/06-file-handling)
 
 ## 🗺️ Learning Roadmap
 

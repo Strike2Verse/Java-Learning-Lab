@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] String Manipulation**  
-Next topic: **[🟡] File Handling**
+Latest completed topic: **[✅] File Handling**  
+Next topic: **[🟡] Error Handling and Exceptions**
 
 ## 🧭 Roadmap Tracker
 
@@ -49,11 +49,11 @@ Next topic: **[🟡] File Handling**
 - [✅] String Formatting (String.format, text blocks)
 - [✅] Working with Regular Expressions (java.util.regex)
 
-## 📁 [🟡] 6. File Handling
+## 📁 [✅] 6. File Handling
 
-- [🟡] Reading and Writing Files (Text, CSV, JSON)
-- [🟡] Working with File Paths (java.nio.file.Path)
-- [🟡] Exception Handling in File Operations
+- [✅] Reading and Writing Files (Text, CSV, JSON)
+- [✅] Working with File Paths (java.nio.file.Path)
+- [✅] Exception Handling in File Operations
 
 ## ⚠️ [🟡] 7. Error Handling and Exceptions
 
