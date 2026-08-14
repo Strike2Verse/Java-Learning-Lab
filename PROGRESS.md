@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] File Handling**  
-Next topic: **[🟡] Error Handling and Exceptions**
+Latest completed topic: **[✅] Error Handling and Exceptions**  
+Next topic: **[🟡] Object-Oriented Programming (OOP)**
 
 ## 🧭 Roadmap Tracker
 
@@ -55,11 +55,11 @@ Next topic: **[🟡] Error Handling and Exceptions**
 - [✅] Working with File Paths (java.nio.file.Path)
 - [✅] Exception Handling in File Operations
 
-## ⚠️ [🟡] 7. Error Handling and Exceptions
+## ⚠️ [✅] 7. Error Handling and Exceptions
 
-- [🟡] Understanding Exceptions (Checked vs Unchecked)
-- [🟡] try, catch, finally, try-with-resources
-- [🟡] Custom Exception Classes
+- [✅] Understanding Exceptions (Checked vs Unchecked)
+- [✅] try, catch, finally, try-with-resources
+- [✅] Custom Exception Classes
 
 ## 📦 [🟡] 8. Object-Oriented Programming (OOP)
 

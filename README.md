@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] File Handling completed**  
-Next focus: **[🟡] Error Handling and Exceptions**
+Current milestone: **[✅] Error Handling and Exceptions completed**  
+Next focus: **[🟡] Object-Oriented Programming (OOP)**
 
 ## 📂 Repository Structure
 
@@ -115,6 +115,15 @@ Notes: [Explanations/05-string-manipulation](Explanations/05-string-manipulation
 
 Code: [Code/06-file-handling](Code/06-file-handling)  
 Notes: [Explanations/06-file-handling](Explanations/06-file-handling)
+
+### Error Handling and Exceptions
+
+- Understanding Exceptions (Checked vs Unchecked)
+- try, catch, finally, try-with-resources
+- Custom Exception Classes
+
+Code: [Code/07-error-handling-and-exceptions](Code/07-error-handling-and-exceptions)  
+Notes: [Explanations/07-error-handling-and-exceptions](Explanations/07-error-handling-and-exceptions)
 
 ## 🗺️ Learning Roadmap
 
