@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Error Handling and Exceptions completed**  
-Next focus: **[🟡] Object-Oriented Programming (OOP)**
+Current milestone: **[✅] Object-Oriented Programming (OOP) completed — all 8 planned sections done! 🎉**  
+Next focus: to be decided — see [PROGRESS.md](PROGRESS.md) for the extended roadmap of future topics.
 
 ## 📂 Repository Structure
 
@@ -125,18 +125,35 @@ Notes: [Explanations/06-file-handling](Explanations/06-file-handling)
 Code: [Code/07-error-handling-and-exceptions](Code/07-error-handling-and-exceptions)  
 Notes: [Explanations/07-error-handling-and-exceptions](Explanations/07-error-handling-and-exceptions)
 
+### Object-Oriented Programming (OOP)
+
+- Classes and Objects
+- Constructors
+- Inheritance
+- Polymorphism
+- Encapsulation
+- Abstraction (abstract classes and interfaces)
+- Object Methods 1 (toString, equals, hashCode)
+- Object Methods 2 (clone, compareTo, Comparable/Comparator)
+
+Code: [Code/08-oop](Code/08-oop)  
+Notes: [Explanations/08-oop](Explanations/08-oop)
+
 ## 🗺️ Learning Roadmap
 
-The repository currently tracks these eight sections. More sections will be added after this stage is completed.
+All eight originally planned sections are now complete:
 
-1. Basics of Java
-2. Control Flow
-3. Methods and Packages
-4. Data Structures
-5. String Manipulation
-6. File Handling
-7. Error Handling and Exceptions
-8. Object-Oriented Programming (OOP)
+1. Basics of Java ✅
+2. Control Flow ✅
+3. Methods and Packages ✅
+4. Data Structures ✅
+5. String Manipulation ✅
+6. File Handling ✅
+7. Error Handling and Exceptions ✅
+8. Object-Oriented Programming (OOP) ✅
+
+Additional sections may be added to [PROGRESS.md](PROGRESS.md) as the
+learning path continues.
 
 ## 💬 Feedback, Suggestions, And Corrections
 
