@@ -1,0 +1,16 @@
+// Reference example only — not meant to be run with javac/java.
+// This is a Gradle build script. Running "gradle build" (once Gradle
+// is installed and this is a real project) would download the Gson
+// dependency and make it available on the classpath.
+
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenCentral() // where to download dependencies from
+}
+
+dependencies {
+    implementation 'com.google.code.gson:gson:2.10.1'
+}

@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Object-Oriented Programming (OOP) completed — all 8 planned sections done! 🎉**  
-Next focus: to be decided — see [PROGRESS.md](PROGRESS.md) for the extended roadmap of future topics.
+Current milestone: **[✅] Packages and Build Tools completed**  
+Next focus: to be decided — see [PROGRESS.md](PROGRESS.md) for possible next sections.
 
 ## 📂 Repository Structure
 
@@ -139,9 +139,17 @@ Notes: [Explanations/07-error-handling-and-exceptions](Explanations/07-error-han
 Code: [Code/08-oop](Code/08-oop)  
 Notes: [Explanations/08-oop](Explanations/08-oop)
 
-## 🗺️ Learning Roadmap
+### Packages and Build Tools
 
-All eight originally planned sections are now complete:
+- Importing Classes/Packages
+- Creating and Using Custom Packages
+- Built-in Packages (java.util, java.time, java.math)
+- Third-party Dependencies (Maven/Gradle)
+
+Code: [Code/09-packages-and-build-tools](Code/09-packages-and-build-tools)  
+Notes: [Explanations/09-packages-and-build-tools](Explanations/09-packages-and-build-tools)
+
+## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
 2. Control Flow ✅
@@ -151,6 +159,7 @@ All eight originally planned sections are now complete:
 6. File Handling ✅
 7. Error Handling and Exceptions ✅
 8. Object-Oriented Programming (OOP) ✅
+9. Packages and Build Tools ✅
 
 Additional sections may be added to [PROGRESS.md](PROGRESS.md) as the
 learning path continues.

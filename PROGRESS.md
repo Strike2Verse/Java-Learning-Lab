@@ -2,12 +2,12 @@
 
 This file tracks the Java learning roadmap and shows which topics are completed or currently active.
 
-**Status Guide:** `[✅] Completed` · `[🟡] In Progress`
+**Status Guide:** `[✅] Completed` · `[🟡] In Progress / Not Started`
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Object-Oriented Programming (OOP)**  
-Next topic: **None yet — roadmap section complete! 🎉**
+Latest completed topic: **[✅] Packages and Build Tools**  
+Next topic: **[🟡] Advanced Data Structures**
 
 ## 🧭 Roadmap Tracker
 
@@ -64,7 +64,7 @@ Next topic: **None yet — roadmap section complete! 🎉**
 ## 📦 [✅] 8. Object-Oriented Programming (OOP)
 
 - [✅] Classes and Objects
-- [✅] Constructors (cleanup via try-with-resources/AutoCloseable)
+- [✅] Constructors
 - [✅] Inheritance
 - [✅] Polymorphism
 - [✅] Encapsulation
@@ -72,14 +72,77 @@ Next topic: **None yet — roadmap section complete! 🎉**
 - [✅] Object Methods 1 (toString, equals, hashCode)
 - [✅] Object Methods 2 (clone, compareTo, Comparable/Comparator)
 
+## 📦 [✅] 9. Packages and Build Tools
+
+- [✅] Importing Classes/Packages
+- [✅] Creating and Using Custom Packages
+- [✅] Built-in Packages (java.util, java.time, java.math)
+- [✅] Third-party Dependencies (Maven/Gradle)
+
+## 🌲 [🟡] 10. Advanced Data Structures
+
+- [🟡] Stacks
+- [🟡] Queues / Deques
+- [🟡] Linked Lists (custom implementation)
+- [🟡] Trees (Binary Tree, BST)
+- [🟡] Graphs
+
+## 📚 [🟡] 11. Working with Libraries
+
+- [🟡] Jackson / Gson (JSON parsing)
+- [🟡] Apache Commons
+- [🟡] JFreeChart (data visualization)
+
+## 🚀 [🟡] 12. Advanced Topics
+
+- [🟡] Generics
+- [🟡] Streams API (deep dive)
+- [🟡] Lambda Expressions & Functional Interfaces
+- [🟡] Try-with-resources / AutoCloseable
+- [🟡] Multithreading (Thread, Runnable)
+- [🟡] Concurrency (ExecutorService, CompletableFuture)
+
+## 🕸️ [🟡] 13. Web Scraping
+
+- [🟡] Java HttpClient
+- [🟡] Jsoup (HTML parsing)
+- [🟡] Selenium for Web Automation (Java bindings)
+
+## 🧪 [🟡] 14. Testing and Debugging
+
+- [🟡] Writing Unit Tests with JUnit
+- [🟡] Debugging Techniques (breakpoints, logging)
+
+## 🗄️ [🟡] 15. Working with Databases
+
+- [🟡] JDBC Basics
+- [🟡] SQLite in Java
+- [🟡] MySQL Database Integration
+- [🟡] Hibernate (ORM)
+
+## 🎮 [🟡] 16. Game Development
+
+- [🟡] Java2D Basics
+- [🟡] Game Loops and Event Handling
+- [🟡] (Optional) LibGDX intro
+
+## 🌐 [🟡] 17. Networking
+
+- [🟡] Sockets in Java
+- [🟡] Email Automation (JavaMail)
+
+## 🤖 [🟡] 18. Machine Learning Basics (optional)
+
+- [🟡] Working with Weka / DL4J
+- [🟡] Supervised Learning
+- [🟡] Unsupervised Learning
+- [🟡] Reinforcement Learning (intro)
+
+## 🖥️ [🟡] 19. Web Development
+
+- [🟡] Servlets & JSP
+- [🟡] Spring Boot
+
 ## 📝 Progress Rule
 
-A topic is marked `[✅]` only after its explanation, quiz, and practice program are completed.
-
-## 🚀 What's Next
-
-All 8 sections of the original roadmap are complete. Future sections
-(Packages and Build Tools, Advanced Data Structures, Working with
-Libraries, Advanced Topics, Web Scraping, Testing and Debugging, Working
-with Databases, Game Development, Networking, Machine Learning Basics,
-Web Development) will be added here as they're started.
+A topic is marked `[✅]` only after its explanation, quiz, and practice program are completed. Upcoming topics stay marked `[🟡]` until started and completed step by step.
