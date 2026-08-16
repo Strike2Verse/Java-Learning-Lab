@@ -29,3 +29,12 @@ output.txt
 legacy-output.txt
 data.csv
 data.json
+
+# Gradle build artifacts (generated if a Gradle project is initialized locally —
+# not part of the learning content itself)
+.gradle/
+build/
+gradle/
+gradlew
+gradlew.bat
+settings.gradle
