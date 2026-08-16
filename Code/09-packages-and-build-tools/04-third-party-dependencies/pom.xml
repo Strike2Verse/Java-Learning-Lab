@@ -1,0 +1,19 @@
+<!--
+  Reference example only — not meant to be run with javac/java.
+  This is a Maven Project Object Model (POM) file. Running "mvn install"
+  (once Maven is installed and this is a real project) would download
+  the Gson dependency and make it available on the classpath.
+-->
+<project>
+    <groupId>com.javalab</groupId>
+    <artifactId>java-learning-lab</artifactId>
+    <version>1.0</version>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+    </dependencies>
+</project>
