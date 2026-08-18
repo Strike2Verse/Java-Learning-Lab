@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Packages and Build Tools**  
-Next topic: **[🟡] Advanced Data Structures**
+Latest completed topic: **[✅] Advanced Data Structures**  
+Next topic: **[🟡] Working with Libraries**
 
 ## 🧭 Roadmap Tracker
 
@@ -79,13 +79,13 @@ Next topic: **[🟡] Advanced Data Structures**
 - [✅] Built-in Packages (java.util, java.time, java.math)
 - [✅] Third-party Dependencies (Maven/Gradle)
 
-## 🌲 [🟡] 10. Advanced Data Structures
+## 🌲 [✅] 10. Advanced Data Structures
 
-- [🟡] Stacks
-- [🟡] Queues / Deques
-- [🟡] Linked Lists (custom implementation)
-- [🟡] Trees (Binary Tree, BST)
-- [🟡] Graphs
+- [✅] Stacks
+- [✅] Queues / Deques
+- [✅] Linked Lists (custom implementation)
+- [✅] Trees (Binary Tree, BST)
+- [✅] Graphs
 
 ## 📚 [🟡] 11. Working with Libraries
 
