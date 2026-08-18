@@ -18,8 +18,10 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Packages and Build Tools completed**  
-Next focus: to be decided — see [PROGRESS.md](PROGRESS.md) for possible next sections.
+Current milestone: **[✅] Advanced Data Structures completed**  
+Next focus: **[🟡] Working with Libraries**
+
+A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
 ## 📂 Repository Structure
 
@@ -30,6 +32,7 @@ Next focus: to be decided — see [PROGRESS.md](PROGRESS.md) for possible next s
 ├── .gitignore            # Files and folders Git should ignore
 ├── CLAUDE.md             # AI usage disclosure notes
 ├── PROGRESS.md           # Detailed roadmap and progress tracker
+├── PROJECT.md             # Locked capstone project placeholder
 └── README.md             # Main repository overview
 ```
 
@@ -149,6 +152,17 @@ Notes: [Explanations/08-oop](Explanations/08-oop)
 Code: [Code/09-packages-and-build-tools](Code/09-packages-and-build-tools)  
 Notes: [Explanations/09-packages-and-build-tools](Explanations/09-packages-and-build-tools)
 
+### Advanced Data Structures
+
+- Stacks
+- Queues / Deques
+- Linked Lists (custom implementation)
+- Trees (Binary Tree, BST)
+- Graphs
+
+Code: [Code/10-advanced-data-structures](Code/10-advanced-data-structures)  
+Notes: [Explanations/10-advanced-data-structures](Explanations/10-advanced-data-structures)
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -160,9 +174,10 @@ Notes: [Explanations/09-packages-and-build-tools](Explanations/09-packages-and-b
 7. Error Handling and Exceptions ✅
 8. Object-Oriented Programming (OOP) ✅
 9. Packages and Build Tools ✅
+10. Advanced Data Structures ✅
 
-Additional sections may be added to [PROGRESS.md](PROGRESS.md) as the
-learning path continues.
+See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
+upcoming sections.
 
 ## 💬 Feedback, Suggestions, And Corrections
 
