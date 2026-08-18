@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Advanced Data Structures**  
-Next topic: **[🟡] Working with Libraries**
+Latest completed topic: **[✅] Working with Libraries**  
+Next topic: **[🟡] Advanced Topics**
 
 ## 🧭 Roadmap Tracker
 
@@ -87,11 +87,11 @@ Next topic: **[🟡] Working with Libraries**
 - [✅] Trees (Binary Tree, BST)
 - [✅] Graphs
 
-## 📚 [🟡] 11. Working with Libraries
+## 📚 [✅] 11. Working with Libraries
 
-- [🟡] Jackson / Gson (JSON parsing)
-- [🟡] Apache Commons
-- [🟡] JFreeChart (data visualization)
+- [✅] Jackson / Gson (JSON parsing)
+- [✅] Apache Commons
+- [✅] JFreeChart (data visualization)
 
 ## 🚀 [🟡] 12. Advanced Topics
 

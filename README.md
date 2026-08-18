@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Advanced Data Structures completed**  
-Next focus: **[🟡] Working with Libraries**
+Current milestone: **[✅] Working with Libraries completed**  
+Next focus: **[🟡] Advanced Topics**
 
 A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
@@ -163,6 +163,15 @@ Notes: [Explanations/09-packages-and-build-tools](Explanations/09-packages-and-b
 Code: [Code/10-advanced-data-structures](Code/10-advanced-data-structures)  
 Notes: [Explanations/10-advanced-data-structures](Explanations/10-advanced-data-structures)
 
+### Working with Libraries
+
+- Jackson / Gson (JSON parsing)
+- Apache Commons
+- JFreeChart (data visualization)
+
+Code: [Code/11-working-with-libraries](Code/11-working-with-libraries)  
+Notes: [Explanations/11-working-with-libraries](Explanations/11-working-with-libraries)
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -175,6 +184,7 @@ Notes: [Explanations/10-advanced-data-structures](Explanations/10-advanced-data-
 8. Object-Oriented Programming (OOP) ✅
 9. Packages and Build Tools ✅
 10. Advanced Data Structures ✅
+11. Working with Libraries ✅
 
 See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
 upcoming sections.
