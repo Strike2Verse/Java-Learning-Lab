@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Working with Libraries**  
-Next topic: **[🟡] Advanced Topics**
+Latest completed topic: **[✅] Advanced Topics**  
+Next topic: **[🟡] Web Scraping**
 
 ## 🧭 Roadmap Tracker
 
@@ -93,14 +93,14 @@ Next topic: **[🟡] Advanced Topics**
 - [✅] Apache Commons
 - [✅] JFreeChart (data visualization)
 
-## 🚀 [🟡] 12. Advanced Topics
+## 🚀 [✅] 12. Advanced Topics
 
-- [🟡] Generics
-- [🟡] Streams API (deep dive)
-- [🟡] Lambda Expressions & Functional Interfaces
-- [🟡] Try-with-resources / AutoCloseable
-- [🟡] Multithreading (Thread, Runnable)
-- [🟡] Concurrency (ExecutorService, CompletableFuture)
+- [✅] Generics
+- [✅] Streams API (deep dive)
+- [✅] Lambda Expressions & Functional Interfaces
+- [✅] Try-with-resources / AutoCloseable
+- [✅] Multithreading (Thread, Runnable)
+- [✅] Concurrency (ExecutorService, CompletableFuture)
 
 ## 🕸️ [🟡] 13. Web Scraping
 
