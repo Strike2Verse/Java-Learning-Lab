@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Working with Libraries completed**  
-Next focus: **[🟡] Advanced Topics**
+Current milestone: **[✅] Advanced Topics completed**  
+Next focus: **[🟡] Web Scraping**
 
 A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
@@ -172,6 +172,18 @@ Notes: [Explanations/10-advanced-data-structures](Explanations/10-advanced-data-
 Code: [Code/11-working-with-libraries](Code/11-working-with-libraries)  
 Notes: [Explanations/11-working-with-libraries](Explanations/11-working-with-libraries)
 
+### Advanced Topics
+
+- Generics
+- Streams API (deep dive)
+- Lambda Expressions & Functional Interfaces
+- Try-with-resources / AutoCloseable
+- Multithreading (Thread, Runnable)
+- Concurrency (ExecutorService, CompletableFuture)
+
+Code: [Code/12-advanced-topics](Code/12-advanced-topics)  
+Notes: [Explanations/12-advanced-topics](Explanations/12-advanced-topics)
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -185,6 +197,7 @@ Notes: [Explanations/11-working-with-libraries](Explanations/11-working-with-lib
 9. Packages and Build Tools ✅
 10. Advanced Data Structures ✅
 11. Working with Libraries ✅
+12. Advanced Topics ✅
 
 See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
 upcoming sections.
