@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Advanced Topics completed**  
-Next focus: **[🟡] Web Scraping**
+Current milestone: **[✅] Web Scraping completed**  
+Next focus: **[🟡] Testing and Debugging**
 
 A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
@@ -184,6 +184,15 @@ Notes: [Explanations/11-working-with-libraries](Explanations/11-working-with-lib
 Code: [Code/12-advanced-topics](Code/12-advanced-topics)  
 Notes: [Explanations/12-advanced-topics](Explanations/12-advanced-topics)
 
+### Web Scraping
+
+- Java HttpClient
+- Jsoup (HTML parsing)
+- Selenium for Web Automation (Java bindings)
+
+Code: [Code/13-web-scraping](Code/13-web-scraping)  
+Notes: [Explanations/13-web-scraping](Explanations/13-web-scraping)
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -198,6 +207,7 @@ Notes: [Explanations/12-advanced-topics](Explanations/12-advanced-topics)
 10. Advanced Data Structures ✅
 11. Working with Libraries ✅
 12. Advanced Topics ✅
+13. Web Scraping ✅
 
 See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
 upcoming sections.
