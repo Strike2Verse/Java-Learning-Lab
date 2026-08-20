@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Web Scraping completed**  
-Next focus: **[🟡] Testing and Debugging**
+Current milestone: **[✅] Testing and Debugging completed**  
+Next focus: **[🟡] Working with Databases**
 
 A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
@@ -193,6 +193,14 @@ Notes: [Explanations/12-advanced-topics](Explanations/12-advanced-topics)
 Code: [Code/13-web-scraping](Code/13-web-scraping)  
 Notes: [Explanations/13-web-scraping](Explanations/13-web-scraping)
 
+### Testing and Debugging
+
+- Writing Unit Tests with JUnit
+- Debugging Techniques (breakpoints, logging)
+
+Code: [Code/14-testing-and-debugging](Code/14-testing-and-debugging)  
+Notes: [Explanations/14-testing-and-debugging](Explanations/14-testing-and-debugging)
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -208,6 +216,7 @@ Notes: [Explanations/13-web-scraping](Explanations/13-web-scraping)
 11. Working with Libraries ✅
 12. Advanced Topics ✅
 13. Web Scraping ✅
+14. Testing and Debugging ✅
 
 See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
 upcoming sections.
