@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Advanced Topics**  
-Next topic: **[🟡] Web Scraping**
+Latest completed topic: **[✅] Web Scraping**  
+Next topic: **[🟡] Testing and Debugging**
 
 ## 🧭 Roadmap Tracker
 
@@ -102,11 +102,11 @@ Next topic: **[🟡] Web Scraping**
 - [✅] Multithreading (Thread, Runnable)
 - [✅] Concurrency (ExecutorService, CompletableFuture)
 
-## 🕸️ [🟡] 13. Web Scraping
+## 🕸️ [✅] 13. Web Scraping
 
-- [🟡] Java HttpClient
-- [🟡] Jsoup (HTML parsing)
-- [🟡] Selenium for Web Automation (Java bindings)
+- [✅] Java HttpClient
+- [✅] Jsoup (HTML parsing)
+- [✅] Selenium for Web Automation (Java bindings)
 
 ## 🧪 [🟡] 14. Testing and Debugging
 
