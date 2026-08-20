@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Web Scraping**  
-Next topic: **[🟡] Testing and Debugging**
+Latest completed topic: **[✅] Testing and Debugging**  
+Next topic: **[🟡] Working with Databases**
 
 ## 🧭 Roadmap Tracker
 
@@ -108,10 +108,10 @@ Next topic: **[🟡] Testing and Debugging**
 - [✅] Jsoup (HTML parsing)
 - [✅] Selenium for Web Automation (Java bindings)
 
-## 🧪 [🟡] 14. Testing and Debugging
+## 🧪 [✅] 14. Testing and Debugging
 
-- [🟡] Writing Unit Tests with JUnit
-- [🟡] Debugging Techniques (breakpoints, logging)
+- [✅] Writing Unit Tests with JUnit
+- [✅] Debugging Techniques (breakpoints, logging)
 
 ## 🗄️ [🟡] 15. Working with Databases
 
