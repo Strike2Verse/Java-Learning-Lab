@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Testing and Debugging completed**  
-Next focus: **[🟡] Working with Databases**
+Current milestone: **[✅] Working with Databases completed**  
+Next focus: **[🟡] Game Development**
 
 A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
@@ -201,6 +201,16 @@ Notes: [Explanations/13-web-scraping](Explanations/13-web-scraping)
 Code: [Code/14-testing-and-debugging](Code/14-testing-and-debugging)  
 Notes: [Explanations/14-testing-and-debugging](Explanations/14-testing-and-debugging)
 
+### Working with Databases
+
+- JDBC Basics
+- SQLite in Java
+- MySQL Database Integration
+- Hibernate (ORM)
+
+Code: [Code/15-working-with-databases](Code/15-working-with-databases)  
+Notes: [Explanations/15-working-with-databases](Explanations/15-working-with-databases)
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -217,6 +227,7 @@ Notes: [Explanations/14-testing-and-debugging](Explanations/14-testing-and-debug
 12. Advanced Topics ✅
 13. Web Scraping ✅
 14. Testing and Debugging ✅
+15. Working with Databases ✅
 
 See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
 upcoming sections.

@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Testing and Debugging**  
-Next topic: **[🟡] Working with Databases**
+Latest completed topic: **[✅] Working with Databases**  
+Next topic: **[🟡] Game Development**
 
 ## 🧭 Roadmap Tracker
 
@@ -113,12 +113,12 @@ Next topic: **[🟡] Working with Databases**
 - [✅] Writing Unit Tests with JUnit
 - [✅] Debugging Techniques (breakpoints, logging)
 
-## 🗄️ [🟡] 15. Working with Databases
+## 🗄️ [✅] 15. Working with Databases
 
-- [🟡] JDBC Basics
-- [🟡] SQLite in Java
-- [🟡] MySQL Database Integration
-- [🟡] Hibernate (ORM)
+- [✅] JDBC Basics
+- [✅] SQLite in Java
+- [✅] MySQL Database Integration
+- [✅] Hibernate (ORM)
 
 ## 🎮 [🟡] 16. Game Development
 
