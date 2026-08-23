@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Working with Databases completed**  
-Next focus: **[🟡] Game Development**
+Current milestone: **[✅] Game Development completed**  
+Next focus: **[🟡] Networking**
 
 A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
@@ -211,6 +211,16 @@ Notes: [Explanations/14-testing-and-debugging](Explanations/14-testing-and-debug
 Code: [Code/15-working-with-databases](Code/15-working-with-databases)  
 Notes: [Explanations/15-working-with-databases](Explanations/15-working-with-databases)
 
+### Game Development
+
+- Java2D Basics
+- Game Loops and Event Handling
+
+Code: [Code/16-game-development](Code/16-game-development)  
+Notes: [Explanations/16-game-development](Explanations/16-game-development)
+
+*(Optional LibGDX intro skipped for now — see PROGRESS.md)*
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -228,6 +238,7 @@ Notes: [Explanations/15-working-with-databases](Explanations/15-working-with-dat
 13. Web Scraping ✅
 14. Testing and Debugging ✅
 15. Working with Databases ✅
+16. Game Development ✅
 
 See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
 upcoming sections.

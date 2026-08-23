@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Working with Databases**  
-Next topic: **[🟡] Game Development**
+Latest completed topic: **[✅] Game Development**  
+Next topic: **[🟡] Networking**
 
 ## 🧭 Roadmap Tracker
 
@@ -120,10 +120,10 @@ Next topic: **[🟡] Game Development**
 - [✅] MySQL Database Integration
 - [✅] Hibernate (ORM)
 
-## 🎮 [🟡] 16. Game Development
+## 🎮 [✅] 16. Game Development
 
-- [🟡] Java2D Basics
-- [🟡] Game Loops and Event Handling
+- [✅] Java2D Basics
+- [✅] Game Loops and Event Handling
 - [🟡] (Optional) LibGDX intro
 
 ## 🌐 [🟡] 17. Networking
@@ -146,3 +146,7 @@ Next topic: **[🟡] Game Development**
 ## 📝 Progress Rule
 
 A topic is marked `[✅]` only after its explanation, quiz, and practice program are completed. Upcoming topics stay marked `[🟡]` until started and completed step by step.
+
+Note: "(Optional) LibGDX intro" under Game Development is intentionally
+skipped for now, as noted in the roadmap — Game Development is
+considered complete with its two core subtopics done.
