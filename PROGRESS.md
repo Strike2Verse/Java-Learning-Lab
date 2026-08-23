@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Game Development**  
-Next topic: **[🟡] Networking**
+Latest completed topic: **[✅] Networking**  
+Next topic: **[🟡] Machine Learning Basics (optional)**
 
 ## 🧭 Roadmap Tracker
 
@@ -126,10 +126,10 @@ Next topic: **[🟡] Networking**
 - [✅] Game Loops and Event Handling
 - [🟡] (Optional) LibGDX intro
 
-## 🌐 [🟡] 17. Networking
+## 🌐 [✅] 17. Networking
 
-- [🟡] Sockets in Java
-- [🟡] Email Automation (JavaMail)
+- [✅] Sockets in Java
+- [✅] Email Automation (JavaMail)
 
 ## 🤖 [🟡] 18. Machine Learning Basics (optional)
 
