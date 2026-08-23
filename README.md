@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Game Development completed**  
-Next focus: **[🟡] Networking**
+Current milestone: **[✅] Networking completed**  
+Next focus: **[🟡] Machine Learning Basics (optional)**
 
 A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
@@ -221,6 +221,14 @@ Notes: [Explanations/16-game-development](Explanations/16-game-development)
 
 *(Optional LibGDX intro skipped for now — see PROGRESS.md)*
 
+### Networking
+
+- Sockets in Java
+- Email Automation (JavaMail)
+
+Code: [Code/17-networking](Code/17-networking)  
+Notes: [Explanations/17-networking](Explanations/17-networking)
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -239,6 +247,7 @@ Notes: [Explanations/16-game-development](Explanations/16-game-development)
 14. Testing and Debugging ✅
 15. Working with Databases ✅
 16. Game Development ✅
+17. Networking ✅
 
 See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
 upcoming sections.
