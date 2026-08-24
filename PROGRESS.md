@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Networking**  
-Next topic: **[🟡] Machine Learning Basics (optional)**
+Latest completed topic: **[✅] Machine Learning Basics (optional)**  
+Next topic: **[🟡] Web Development**
 
 ## 🧭 Roadmap Tracker
 
@@ -131,12 +131,12 @@ Next topic: **[🟡] Machine Learning Basics (optional)**
 - [✅] Sockets in Java
 - [✅] Email Automation (JavaMail)
 
-## 🤖 [🟡] 18. Machine Learning Basics (optional)
+## 🤖 [✅] 18. Machine Learning Basics (optional)
 
-- [🟡] Working with Weka / DL4J
-- [🟡] Supervised Learning
-- [🟡] Unsupervised Learning
-- [🟡] Reinforcement Learning (intro)
+- [✅] Working with Weka / DL4J
+- [✅] Supervised Learning
+- [✅] Unsupervised Learning
+- [✅] Reinforcement Learning (intro)
 
 ## 🖥️ [🟡] 19. Web Development
 
