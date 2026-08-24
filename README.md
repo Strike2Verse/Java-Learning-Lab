@@ -18,8 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Networking completed**  
-Next focus: **[🟡] Machine Learning Basics (optional)**
+Current milestone: **[✅] Machine Learning Basics (optional) completed**  
+Next focus: **[🟡] Web Development**
 
 A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
 
@@ -229,6 +229,16 @@ Notes: [Explanations/16-game-development](Explanations/16-game-development)
 Code: [Code/17-networking](Code/17-networking)  
 Notes: [Explanations/17-networking](Explanations/17-networking)
 
+### Machine Learning Basics (optional)
+
+- Working with Weka / DL4J
+- Supervised Learning
+- Unsupervised Learning
+- Reinforcement Learning (intro)
+
+Code: [Code/18-machine-learning-basics](Code/18-machine-learning-basics)  
+Notes: [Explanations/18-machine-learning-basics](Explanations/18-machine-learning-basics)
+
 ## 🗺️ Learning Roadmap
 
 1. Basics of Java ✅
@@ -248,6 +258,7 @@ Notes: [Explanations/17-networking](Explanations/17-networking)
 15. Working with Databases ✅
 16. Game Development ✅
 17. Networking ✅
+18. Machine Learning Basics (optional) ✅
 
 See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
 upcoming sections.
