@@ -1,0 +1,23 @@
+name: Check for empty files
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  check-empty-files:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for empty files
+        run: |
+          empty=$(find . -type f -size 0 -not -path './.git/*')
+          if [ -n "$empty" ]; then
+            echo "Empty files found:"
+            echo "$empty"
+            exit 1
+          fi
