@@ -6,8 +6,8 @@ This file tracks the Java learning roadmap and shows which topics are completed 
 
 ## 🎯 Current Focus
 
-Latest completed topic: **[✅] Machine Learning Basics (optional)**  
-Next topic: **[🟡] Web Development**
+Latest completed topic: **[✅] Web Development**  
+Next topic: **None — full roadmap complete! 🎉**
 
 ## 🧭 Roadmap Tracker
 
@@ -138,15 +138,29 @@ Next topic: **[🟡] Web Development**
 - [✅] Unsupervised Learning
 - [✅] Reinforcement Learning (intro)
 
-## 🖥️ [🟡] 19. Web Development
+## 🖥️ [✅] 19. Web Development
 
-- [🟡] Servlets & JSP
-- [🟡] Spring Boot
+- [✅] Servlets & JSP
+- [✅] Spring Boot
 
 ## 📝 Progress Rule
 
-A topic is marked `[✅]` only after its explanation, quiz, and practice program are completed. Upcoming topics stay marked `[🟡]` until started and completed step by step.
+A topic is marked `[✅]` only after its explanation, quiz, and practice program are completed.
 
-Note: "(Optional) LibGDX intro" under Game Development is intentionally
-skipped for now, as noted in the roadmap — Game Development is
-considered complete with its two core subtopics done.
+## 🎉 Roadmap Complete
+
+Every planned section (1 through 19) is now complete, with the sole
+exception of the optional LibGDX intro under Game Development. This
+marks the end of the structured learning phase of this repository.
+
+These 19 sections were the topics identified when this repository
+started — they were not meant to be an exhaustive, permanently fixed
+list. Java (and the broader ecosystem around it) keeps evolving, and
+there may be topics worth learning that weren't anticipated at the
+start, or that only became relevant after working through the roadmap.
+If a new topic is identified later, it will be added here as a new
+numbered section and worked through the same way as the rest of this
+repository — explanation, quiz, practice program, commit.
+
+See [PROJECT.md](PROJECT.md) — the capstone project is now unlocked and
+ready to begin.
