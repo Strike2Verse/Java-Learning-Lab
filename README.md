@@ -18,10 +18,8 @@ This repository is for relearning Java in a simple, organized, and project-focus
 
 Detailed progress is tracked in [PROGRESS.md](PROGRESS.md).
 
-Current milestone: **[✅] Machine Learning Basics (optional) completed**  
-Next focus: **[🟡] Web Development**
-
-A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked until the full roadmap is complete).
+Current milestone: **[✅] Full roadmap complete — 19 of 19 topics done! 🎉**  
+Next focus: the capstone project — see [PROJECT.md](PROJECT.md).
 
 ## 📂 Repository Structure
 
@@ -32,11 +30,11 @@ A capstone project is also planned — see [PROJECT.md](PROJECT.md) (locked unti
 ├── .gitignore            # Files and folders Git should ignore
 ├── CLAUDE.md             # AI usage disclosure notes
 ├── PROGRESS.md           # Detailed roadmap and progress tracker
-├── PROJECT.md             # Locked capstone project placeholder
+├── PROJECT.md             # Capstone project (now unlocked)
 └── README.md             # Main repository overview
 ```
 
-Future folders will be added only when the learning path needs them.
+Future folders will be added only when the capstone project needs them.
 
 ## 🧭 How To Use This Repository
 
@@ -239,7 +237,15 @@ Notes: [Explanations/17-networking](Explanations/17-networking)
 Code: [Code/18-machine-learning-basics](Code/18-machine-learning-basics)  
 Notes: [Explanations/18-machine-learning-basics](Explanations/18-machine-learning-basics)
 
-## 🗺️ Learning Roadmap
+### Web Development
+
+- Servlets & JSP
+- Spring Boot
+
+Code: [Code/19-web-development](Code/19-web-development)  
+Notes: [Explanations/19-web-development](Explanations/19-web-development)
+
+## 🗺️ Learning Roadmap — Complete
 
 1. Basics of Java ✅
 2. Control Flow ✅
@@ -259,9 +265,17 @@ Notes: [Explanations/18-machine-learning-basics](Explanations/18-machine-learnin
 16. Game Development ✅
 17. Networking ✅
 18. Machine Learning Basics (optional) ✅
+19. Web Development ✅
 
-See [PROGRESS.md](PROGRESS.md) for the full extended roadmap, including
-upcoming sections.
+All 19 sections of the roadmap are complete. The capstone project
+(previously locked in [PROJECT.md](PROJECT.md)) is now unlocked.
+
+These 19 sections were the topics identified when this repository
+started, not a permanently fixed list. If a new, worthwhile topic is
+found later — something not anticipated at the start, or something that
+only becomes relevant after working through the roadmap — it will be
+added as a new numbered section in [PROGRESS.md](PROGRESS.md) and worked
+through the same way as everything else here.
 
 ## 💬 Feedback, Suggestions, And Corrections
 
