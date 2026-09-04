@@ -1,6 +1,10 @@
 # Compiled class file
 *.class
 
+# Agent scratch / planning files (not relevant to GitHub visitors)
+task.md
+implementation_plan.md
+
 # Log file
 *.log
 

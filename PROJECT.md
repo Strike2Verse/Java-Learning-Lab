@@ -1,38 +1,74 @@
-# 🔒 Capstone Project — Coming Soon
+# 🎮 Capstone Project: Signal Loss
 
-This repository isn't just about individual topics — once the full
-roadmap in [PROGRESS.md](PROGRESS.md) is completed, a real, standalone
-project will be built here that ties everything together.
+**Signal Loss** is a standalone retro-cyberpunk 2D grid puzzle game built entirely in Java — no external game engine, no libraries. It is the capstone project for this Java learning laboratory, combining concepts studied across the full roadmap: OOP, threading, audio synthesis, state-space pathfinding, and procedural level generation.
 
-## 📌 Status: Locked
+---
 
-This section stays locked until every topic in the roadmap is marked
-`[✅]`. No project work will begin before then — the goal is to first
-build a solid, complete foundation, then put it to use on something real.
+## 🎯 Gameplay Concept
 
-## 🎯 Why a Project, Not Just Topics
+You control a **data packet** navigating a decaying circuit grid. Traverse nodes and reach the **Exit (Uplink)** before your signal strength drops to **0%**.
 
-Going through each topic builds the individual pieces — variables, loops,
-collections, file handling, OOP, and beyond. A project is where those
-pieces come together into something that actually works end-to-end:
-something with real structure, real data, and a real purpose, not just
-isolated practice snippets.
+### Node Types & Mechanics
 
-## 🧭 What Happens Once the Roadmap Is Complete
+| Node | Effect |
+|------|--------|
+| 🟢 **Boost** | Restores **+20%** signal. Consumed after one visit. |
+| 🔴 **Hazard** | Deals an extra **−15%** damage on entry. |
+| 🟠 **Teleport** | Instantly warps the packet to a linked distant node. |
+| 🟡 **Flip** | Toggles ONLINE ↔ OFFLINE every N steps — acts as a timed wall. |
+| ⚪ **Exit (Uplink)** | Reach this node to complete the level. |
 
-1. Review everything learned across all topics.
-2. Decide on a project that meaningfully uses multiple concepts together
-   (OOP design, collections, file or database persistence, error
-   handling, and more).
-3. Plan it properly — classes, structure, features — before writing any
-   code.
-4. Build it the same way this repo has worked so far: understand first,
-   then implement, then commit.
-5. Document it here, replacing this placeholder with the real project
-   details.
+Every step costs **−10%** base signal. Plan your route — or run out of power.
 
-## 🔓 Unlock Condition
+---
 
-Check [PROGRESS.md](PROGRESS.md) — when every section there is marked
-`[✅]`, this file gets replaced with the actual project plan and
-progress.
+## 🛠️ Architecture
+
+```
+Capstone-SignalLoss/
+├── SignalLossGame.java   — JFrame entry point
+├── GamePanel.java        — Game loop, rendering, input, UI, particles, combos
+├── Node.java             — Grid junction model (type, position, state)
+├── Packet.java           — Player entity (signal, steps, movement logic)
+├── LevelSolver.java      — BFS solver that verifies generated levels are solvable
+└── SoundManager.java     — Programmatic 8-bit audio synthesis (javax.sound.sampled)
+```
+
+**No external dependencies.** Runs on any machine with Java 8+.
+
+---
+
+## ⌨️ How to Run
+
+```bash
+# Compile
+javac Capstone-SignalLoss/*.java
+
+# Run
+java -cp Capstone-SignalLoss SignalLossGame
+```
+
+### Controls
+
+| Key | Action |
+|-----|--------|
+| `W A S D` or Arrow Keys | Move packet between connected nodes |
+| `Space` | Generate a new, verified-solvable level |
+| `R` | Restart current level |
+| `V` | Cycle volume (100% → 50% → mute) |
+| `ESC` | Return to main menu |
+
+---
+
+## 🧠 Java Concepts Applied
+
+| Concept | Where Used |
+|---------|-----------|
+| OOP — classes, inheritance, enums | `Node`, `Packet`, `GameState` |
+| `javax.swing` + `java.awt` | `GamePanel`, rendering pipeline |
+| Multithreading | `SoundManager` daemon threads |
+| BFS pathfinding | `LevelSolver.solve()` |
+| Procedural generation | `GamePanel.generateRandom()` |
+| Audio synthesis | `SoundManager` — sine/square waves at 44100 Hz |
+| Animation — 60 fps game loop | `javax.swing.Timer` at 16 ms |
+| Particle systems | `GamePanel.Particle` inner class |
