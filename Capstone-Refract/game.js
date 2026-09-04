@@ -32,6 +32,30 @@ let state   = 'MENU';   // MENU | PLAYING | HOWTO
 let frame   = 0;
 let mouse   = { x: 0, y: 0 };
 
+// ── PLAY AREA ─────────────────────────────────────────────────────────────────
+const PLAY  = { x: 60,  y: 48,  w: 1080, h: 654 };  // outer bounds
+const WALL_T = 30;                                    // hatched wall thickness
+const INT   = {                                       // interior (laser zone)
+  x: PLAY.x + WALL_T,
+  y: PLAY.y + WALL_T,
+  w: PLAY.w - WALL_T * 2,
+  h: PLAY.h - WALL_T * 2,
+};
+
+// ── LEVEL DATA ────────────────────────────────────────────────────────────────
+// SOURCE: left wall — laser fires rightward
+const SOURCE = {
+  x: INT.x,
+  y: PLAY.y + PLAY.h * 0.56,   // slightly below centre
+};
+// HOLE: right wall — goal the laser must enter
+const HOLE = {
+  x: INT.x + INT.w,
+  y: PLAY.y + PLAY.h * 0.26,   // upper area — laser misses unless reflected
+  r: 24,                        // hole radius
+};
+const LEVEL = { num: 1, speed: 'SLOW', lines: 3 };
+
 // ── PRE-RENDERED PAPER TEXTURE ───────────────────────────────────────────────
 const offPaper = document.createElement('canvas');
 offPaper.width  = W;
@@ -154,47 +178,66 @@ function drawGrid() {
   ctx.restore();
 }
 
-/** Draws a single pencil icon (simplified) */
+/** Draws a single pencil icon — clearly visible, still light */
 function drawPencil(x, y, rot, alpha) {
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(x, y);
   ctx.rotate(rot);
-  ctx.strokeStyle = C.inkLight;
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = '#888880';  // warm charcoal, slightly warmer than pure grey
+  ctx.lineWidth = 1.8;
   ctx.lineCap = 'round';
   // Body
   ctx.beginPath();
   ctx.rect(-5, -18, 10, 28);
   ctx.stroke();
-  // Tip
+  // Wood grain line
   ctx.beginPath();
-  ctx.moveTo(-5, 10); ctx.lineTo(0, 20); ctx.lineTo(5, 10);
+  ctx.moveTo(0, -18); ctx.lineTo(0, 10);
+  ctx.lineWidth = 0.6;
   ctx.stroke();
-  // Eraser
-  ctx.fillStyle = 'rgba(180,140,140,0.4)';
-  ctx.fillRect(-5, -22, 10, 5);
-  ctx.strokeRect(-5, -22, 10, 5);
+  // Tip
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(-5, 10); ctx.lineTo(0, 22); ctx.lineTo(5, 10);
+  ctx.stroke();
+  // Lead tip dot
+  ctx.fillStyle = '#555';
+  ctx.beginPath();
+  ctx.arc(0, 22, 1.2, 0, Math.PI * 2);
+  ctx.fill();
+  // Eraser (warm pink)
+  ctx.fillStyle = 'rgba(200, 150, 140, 0.55)';
+  ctx.fillRect(-5, -23, 10, 6);
+  ctx.strokeStyle = '#888880';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(-5, -23, 10, 6);
+  // Eraser band
+  ctx.strokeStyle = 'rgba(150, 120, 100, 0.5)';
+  ctx.lineWidth = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(-5, -18); ctx.lineTo(5, -18);
+  ctx.stroke();
   ctx.restore();
 }
 
-/** Draws a freehand scribble */
+/** Draws a freehand scribble — visible, organic, pencil feel */
 function drawScribble(x, y, rot, seed, alpha) {
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.translate(x, y);
   ctx.rotate(rot);
-  ctx.strokeStyle = C.inkLight;
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#8A8880';
+  ctx.lineWidth = 1.5;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
   ctx.beginPath();
   let sx = 0, sy = 0;
   ctx.moveTo(sx, sy);
-  for (let i = 0; i < 6; i++) {
-    const angle = seed + i * 1.1;
-    sx += Math.cos(angle) * 18;
-    sy += Math.sin(angle) * 10;
+  for (let i = 0; i < 7; i++) {
+    const angle = seed + i * 1.05;
+    sx += Math.cos(angle) * 20;
+    sy += Math.sin(angle) * 12;
     ctx.lineTo(sx, sy);
   }
   ctx.stroke();
@@ -205,9 +248,9 @@ function drawScribble(x, y, rot, seed, alpha) {
 function drawDoodles() {
   for (const d of DOODLES) {
     if (d.type === 'pencil') {
-      drawPencil(d.x, d.y, d.rot, 0.18);
+      drawPencil(d.x, d.y, d.rot, 0.30);
     } else {
-      drawScribble(d.x, d.y, d.rot, d.seed, 0.18);
+      drawScribble(d.x, d.y, d.rot, d.seed, 0.25);
     }
   }
 }
@@ -405,7 +448,7 @@ function drawMenu() {
   ctx.textAlign = 'center';
   ctx.fillStyle = C.inkLight;
   ctx.font      = `12px 'Patrick Hand', cursive`;
-  ctx.fillText('REFRACT  ·  Phase 1  ·  Use mouse to draw reflector lines', W/2, H - 14);
+  ctx.fillText('REFRACT  ·  Phase 2  ·  Use mouse to draw reflector lines', W/2, H - 14);
   ctx.restore();
 }
 
@@ -427,66 +470,399 @@ function drawCross(x, y, size) {
   ctx.restore();
 }
 
-// ── GAME AREA (placeholder for Phase 2+) ────────────────────────────────────
+// ── PHASE 2: PLAY AREA ───────────────────────────────────────────────────────
 function drawPlaying() {
-  // Outer game border (blueprint hatched walls — Phase 2 will flesh this out)
-  ctx.save();
-  const bx = 60, by = 60, bw = W-120, bh = H-120;
-  // Fill
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  ctx.fillRect(bx, by, bw, bh);
-  // Hatched border (like reference image 2)
-  drawHatchBorder(bx, by, bw, bh, 20);
-  // Center text
-  ctx.fillStyle    = C.inkMid;
-  ctx.font         = `28px 'Architects Daughter', cursive`;
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('Phase 2 — Laser & Hole coming next', W/2, H/2 - 20);
-  ctx.fillStyle = C.inkLight;
-  ctx.font      = `16px 'Patrick Hand', cursive`;
-  ctx.fillText('Press  ESC  to return to menu', W/2, H/2 + 22);
-  ctx.restore();
+  drawPlayArea();
+  drawStaticLaser();
+  drawSource();
+  drawHole();
+  drawHUD();
 }
 
-/** Hatched diagonal pattern around border (like blueprint reference image walls) */
-function drawHatchBorder(bx, by, bw, bh, thickness) {
+/** Full play area: interior fill + hatched walls + border */
+function drawPlayArea() {
+  // Interior fill — slightly brighter than paper
+  ctx.fillStyle = 'rgba(255, 252, 245, 0.72)';
+  ctx.fillRect(INT.x, INT.y, INT.w, INT.h);
+
+  drawInteriorDots();
+  drawBlueprintAnnotations();
+
+  // Hatched wall strips (blueprint style)
+  hatchStrip(PLAY.x,                    PLAY.y,                     PLAY.w,  WALL_T);        // top
+  hatchStrip(PLAY.x,                    PLAY.y + PLAY.h - WALL_T,   PLAY.w,  WALL_T);        // bottom
+  hatchStrip(PLAY.x,                    PLAY.y,                     WALL_T,  PLAY.h);        // left
+  hatchStrip(PLAY.x + PLAY.w - WALL_T,  PLAY.y,                     WALL_T,  PLAY.h);        // right
+
+  // Outer border — solid sketchy line
+  sketchRect(PLAY.x, PLAY.y, PLAY.w, PLAY.h, 2.5, 'rgba(55, 95, 155, 0.65)');
+  // Inner border — thinner
   ctx.save();
-  // Draw hatching
-  const HATCH  = 10;
-  ctx.strokeStyle = 'rgba(60,100,160,0.25)';
+  ctx.strokeStyle = 'rgba(55, 95, 155, 0.30)';
   ctx.lineWidth   = 1;
-  // Clip to border region only (uses compositing trick)
-  ctx.globalCompositeOperation = 'source-over';
-  // Top strip
-  hatchStrip(bx, by, bw, thickness);
-  // Bottom strip
-  hatchStrip(bx, by+bh-thickness, bw, thickness);
-  // Left strip
-  hatchStrip(bx, by, thickness, bh);
-  // Right strip
-  hatchStrip(bx+bw-thickness, by, thickness, bh);
-  // Outer border line
-  ctx.strokeStyle = 'rgba(60,100,160,0.55)';
-  ctx.lineWidth   = 2;
-  sketchRect(bx, by, bw, bh, 2, 'rgba(60,100,160,0.55)');
+  ctx.strokeRect(INT.x, INT.y, INT.w, INT.h);
   ctx.restore();
+
+  // Blueprint corner squares (decorative, like technical drawings)
+  blueprintCorner(PLAY.x,              PLAY.y);
+  blueprintCorner(PLAY.x + PLAY.w,     PLAY.y);
+  blueprintCorner(PLAY.x,              PLAY.y + PLAY.h);
+  blueprintCorner(PLAY.x + PLAY.w,     PLAY.y + PLAY.h);
 }
 
+/** Hatched diagonal strip clipped to a rectangle */
 function hatchStrip(x, y, w, h) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, w, h);
   ctx.clip();
-  ctx.strokeStyle = 'rgba(60,100,160,0.28)';
+  ctx.strokeStyle = 'rgba(55, 100, 165, 0.22)';
   ctx.lineWidth   = 1;
   const span = w + h;
-  for (let i = -span; i < span; i += 10) {
+  for (let i = -span; i < span; i += 11) {
     ctx.beginPath();
-    ctx.moveTo(x + i, y);
+    ctx.moveTo(x + i,     y);
     ctx.lineTo(x + i + h, y + h);
     ctx.stroke();
   }
+  ctx.restore();
+}
+
+/** Small filled square at each corner of the play area border */
+function blueprintCorner(x, y) {
+  ctx.save();
+  ctx.fillStyle   = 'rgba(55, 100, 165, 0.45)';
+  ctx.strokeStyle = 'rgba(55, 100, 165, 0.70)';
+  ctx.lineWidth   = 1;
+  ctx.fillRect(x - 5, y - 5, 10, 10);
+  ctx.strokeRect(x - 5, y - 5, 10, 10);
+  ctx.restore();
+}
+
+/** Laser SOURCE emitter — blueprint/pencil sketch style */
+function drawSource() {
+  const sx = SOURCE.x, sy = SOURCE.y;
+  const pulse = 0.5 + 0.5 * Math.sin(frame * 0.07);
+
+  // Laser energy glow (soft red — the output energy coming out)
+  const glow = ctx.createRadialGradient(sx + 4, sy, 0, sx + 4, sy, 20 + pulse * 5);
+  glow.addColorStop(0,  `rgba(200, 80, 60, ${0.22 + pulse * 0.10})`);
+  glow.addColorStop(1,   'rgba(200, 80, 60, 0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(sx + 4, sy, 20 + pulse * 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body — blueprint style (light blue-white fill, blueprint blue stroke)
+  ctx.save();
+  ctx.strokeStyle = 'rgba(55, 90, 155, 0.70)';
+  ctx.lineWidth   = 1.8;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  // Main body
+  ctx.fillStyle = 'rgba(225, 232, 245, 0.75)';
+  ctx.fillRect(sx - 22, sy - 11, 22, 22);
+  ctx.strokeRect(sx - 22, sy - 11, 22, 22);
+  // Internal cross detail (technical drawing)
+  ctx.strokeStyle = 'rgba(55, 90, 155, 0.30)';
+  ctx.lineWidth   = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(sx - 22, sy); ctx.lineTo(sx, sy);       // mid horizontal
+  ctx.moveTo(sx - 11, sy - 11); ctx.lineTo(sx - 11, sy + 11); // mid vertical
+  ctx.stroke();
+  // Diagonal hatch on back half
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(sx - 22, sy - 11, 11, 22);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(55, 90, 155, 0.18)';
+  ctx.lineWidth = 0.7;
+  for (let i = -30; i < 30; i += 6) {
+    ctx.beginPath();
+    ctx.moveTo(sx - 22 + i, sy - 11);
+    ctx.lineTo(sx - 22 + i + 22, sy + 11);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // Nozzle tip (triangle, blueprint fill)
+  ctx.strokeStyle = 'rgba(55, 90, 155, 0.70)';
+  ctx.lineWidth   = 1.8;
+  ctx.fillStyle   = 'rgba(210, 220, 240, 0.85)';
+  ctx.beginPath();
+  ctx.moveTo(sx,      sy - 8);
+  ctx.lineTo(sx + 14, sy);
+  ctx.lineTo(sx,      sy + 8);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
+  // Hot energy dot at nozzle tip
+  ctx.fillStyle = `rgba(240, 100, 75, ${0.80 + pulse * 0.20})`;
+  ctx.beginPath();
+  ctx.arc(sx + 6, sy, 3.5 + pulse * 1.2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = `rgba(255, 240, 230, ${0.7 + pulse * 0.2})`;
+  ctx.beginPath();
+  ctx.arc(sx + 6, sy, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Label (blueprint annotation style)
+  ctx.save();
+  ctx.fillStyle   = 'rgba(55, 90, 155, 0.65)';
+  ctx.font        = `10px 'Patrick Hand', cursive`;
+  ctx.textAlign   = 'center';
+  ctx.fillText('SOURCE', sx - 11, sy + 22);
+  // Small annotation line
+  ctx.strokeStyle = 'rgba(55, 90, 155, 0.35)';
+  ctx.lineWidth   = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(sx - 22, sy + 16); ctx.lineTo(sx, sy + 16);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** HOLE goal — pencil/paper sketch style (cross-hatched, not dark void) */
+function drawHole() {
+  const hx = HOLE.x, hy = HOLE.y, hr = HOLE.r;
+  const pulse = 0.5 + 0.5 * Math.sin(frame * 0.05 + 1.2);
+
+  // Warm paper shadow (matches paper tone — not black glow)
+  const smudge = ctx.createRadialGradient(hx + 2, hy + 3, 0, hx + 2, hy + 3, hr + 14);
+  smudge.addColorStop(0,  `rgba(110, 95, 70, ${0.18 + pulse * 0.06})`);
+  smudge.addColorStop(1,   'rgba(110, 95, 70, 0)');
+  ctx.fillStyle = smudge;
+  ctx.beginPath();
+  ctx.arc(hx + 2, hy + 3, hr + 14, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Light fill (paper tone, slightly darker than background)
+  ctx.fillStyle = 'rgba(200, 192, 175, 0.65)';
+  ctx.beginPath();
+  ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Cross-hatching inside (pencil fill — diagonal lines)
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(hx, hy, hr - 1, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(70, 62, 52, 0.20)';
+  ctx.lineWidth = 0.9;
+  const span = hr * 2 + 10;
+  for (let i = -span; i < span; i += 7) {
+    ctx.beginPath();
+    ctx.moveTo(hx - hr + i, hy - hr); ctx.lineTo(hx - hr + i + hr * 2, hy + hr); ctx.stroke();
+  }
+  // Second hatch direction
+  ctx.strokeStyle = 'rgba(70, 62, 52, 0.12)';
+  for (let i = -span; i < span; i += 7) {
+    ctx.beginPath();
+    ctx.moveTo(hx + hr - i, hy - hr); ctx.lineTo(hx + hr - i - hr * 2, hy + hr); ctx.stroke();
+  }
+  ctx.restore();
+
+  // Outer sketchy circle (main border — ink pen style)
+  ctx.save();
+  ctx.strokeStyle = 'rgba(40, 36, 30, 0.75)';
+  ctx.lineWidth   = 2.2;
+  ctx.beginPath();
+  ctx.arc(hx, hy, hr, 0, Math.PI * 2);
+  ctx.stroke();
+  // Second outer ring (hand-drawn double-circle look)
+  ctx.strokeStyle = 'rgba(40, 36, 30, 0.28)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath();
+  ctx.arc(hx, hy, hr + 7, 0, Math.PI * 2);
+  ctx.stroke();
+  // Inner ring
+  ctx.strokeStyle = 'rgba(40, 36, 30, 0.50)';
+  ctx.lineWidth   = 1.2;
+  ctx.beginPath();
+  ctx.arc(hx, hy, hr * 0.5, 0, Math.PI * 2);
+  ctx.stroke();
+  // Centre dot
+  ctx.fillStyle = 'rgba(40, 36, 30, 0.60)';
+  ctx.beginPath();
+  ctx.arc(hx, hy, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // Small cross at centre (technical target)
+  ctx.strokeStyle = 'rgba(40, 36, 30, 0.45)';
+  ctx.lineWidth   = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(hx - 8, hy); ctx.lineTo(hx + 8, hy);
+  ctx.moveTo(hx, hy - 8); ctx.lineTo(hx, hy + 8);
+  ctx.stroke();
+  ctx.restore();
+
+  // Label (blueprint annotation style)
+  ctx.save();
+  ctx.fillStyle   = 'rgba(55, 90, 155, 0.65)';
+  ctx.font        = `10px 'Patrick Hand', cursive`;
+  ctx.textAlign   = 'center';
+  ctx.fillText('GOAL', hx, hy - hr - 10);
+  // Annotation leader line
+  ctx.strokeStyle = 'rgba(55, 90, 155, 0.35)';
+  ctx.lineWidth   = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(hx - 16, hy - hr - 5); ctx.lineTo(hx + 16, hy - hr - 5);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Static laser beam — fires RIGHT from source, hits right wall */
+function drawStaticLaser() {
+  const sx = SOURCE.x + 10,  sy = SOURCE.y;
+  const ex = INT.x + INT.w,  ey = sy;   // hits right wall at same height
+  const pulse = 0.5 + 0.5 * Math.sin(frame * 0.06);
+
+  // Wide soft glow pass
+  ctx.save();
+  ctx.strokeStyle = `rgba(192, 57, 43, ${0.12 + pulse * 0.06})`;
+  ctx.lineWidth   = 18;
+  ctx.lineCap     = 'round';
+  ctx.beginPath();
+  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+  ctx.stroke();
+
+  // Mid glow
+  ctx.strokeStyle = `rgba(210, 70, 50, ${0.25 + pulse * 0.10})`;
+  ctx.lineWidth   = 7;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+  ctx.stroke();
+
+  // Core beam
+  ctx.strokeStyle = `rgba(230, 90, 70, ${0.75 + pulse * 0.15})`;
+  ctx.lineWidth   = 2;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+  ctx.stroke();
+
+  // Hot white centre
+  ctx.strokeStyle = `rgba(255, 220, 210, ${0.6 + pulse * 0.2})`;
+  ctx.lineWidth   = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
+  ctx.stroke();
+  ctx.restore();
+
+  // Wall-impact spark (where laser hits the right wall — NOT the hole)
+  const spark = 0.5 + 0.5 * Math.sin(frame * 0.14);
+  const sg = ctx.createRadialGradient(ex, ey, 0, ex, ey, 12 + spark * 5);
+  sg.addColorStop(0,   `rgba(255, 180, 100, ${0.7 + spark * 0.2})`);
+  sg.addColorStop(0.5, `rgba(220,  80,  40, ${0.4 + spark * 0.1})`);
+  sg.addColorStop(1,    'rgba(192,  57,  43, 0)');
+  ctx.fillStyle = sg;
+  ctx.beginPath();
+  ctx.arc(ex, ey, 12 + spark * 5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hint annotation: laser missing hole
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+  ctx.setLineDash([4, 5]);
+  ctx.lineWidth = 1;
+  // Dashed vertical guide from laser Y to hole Y
+  ctx.beginPath();
+  ctx.moveTo(ex - 60, ey);
+  ctx.lineTo(ex - 60, HOLE.y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = C.inkLight;
+  ctx.font      = `12px 'Patrick Hand', cursive`;
+  ctx.textAlign = 'center';
+  ctx.fillText('← draw a reflector line to redirect!', INT.x + INT.w * 0.52, sy - 14);
+  ctx.restore();
+}
+
+/** HUD strip below the play area */
+function drawHUD() {
+  const hx = PLAY.x, hy = PLAY.y + PLAY.h + 8;
+  const hw = PLAY.w;
+
+  ctx.save();
+  ctx.fillStyle    = C.inkMid;
+  ctx.font         = `13px 'Patrick Hand', cursive`;
+  ctx.textBaseline = 'top';
+
+  // Left: level
+  ctx.textAlign = 'left';
+  ctx.fillText(`LEVEL  ${LEVEL.num}`, hx, hy);
+
+  // Centre: speed
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.inkLight;
+  ctx.fillText(`SPEED: ${LEVEL.speed}`, hx + hw / 2, hy);
+
+  // Right: lines remaining + ESC tip
+  ctx.textAlign = 'right';
+  ctx.fillStyle = C.inkMid;
+  ctx.fillText(`LINES: ${LEVEL.lines}   ·   ESC = menu`, hx + hw, hy);
+  ctx.restore();
+}
+
+/** Faint notebook ruled lines (menu only) — like lined paper */
+function drawRuledLines() {
+  ctx.save();
+  // Horizontal rules
+  ctx.strokeStyle = 'rgba(120, 140, 200, 0.055)';
+  ctx.lineWidth   = 0.5;
+  for (let y = 28; y < H; y += 28) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  // Faint red margin line (left side, like a composition book)
+  ctx.strokeStyle = 'rgba(190, 100, 90, 0.07)';
+  ctx.lineWidth   = 1;
+  ctx.beginPath(); ctx.moveTo(72, 0); ctx.lineTo(72, H); ctx.stroke();
+  ctx.restore();
+}
+
+/** Faint dot grid inside play area interior */
+function drawInteriorDots() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(90, 120, 180, 0.16)';
+  const DOT_STEP = 40;
+  for (let x = INT.x + 20; x < INT.x + INT.w - 10; x += DOT_STEP) {
+    for (let y = INT.y + 20; y < INT.y + INT.h - 10; y += DOT_STEP) {
+      ctx.beginPath();
+      ctx.arc(x, y, 1.1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+/** Blueprint measurement ticks + annotation on play area walls */
+function drawBlueprintAnnotations() {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(55, 90, 155, 0.35)';
+  ctx.fillStyle   = 'rgba(55, 90, 155, 0.50)';
+  ctx.lineWidth   = 0.8;
+  ctx.font        = `9px 'Patrick Hand', cursive`;
+  ctx.textAlign   = 'center';
+  // Top wall ticks (every 200px)
+  for (let x = INT.x; x <= INT.x + INT.w; x += 200) {
+    ctx.beginPath();
+    ctx.moveTo(x, PLAY.y + WALL_T - 4);
+    ctx.lineTo(x, PLAY.y + WALL_T + 4);
+    ctx.stroke();
+  }
+  // Left wall ticks
+  for (let y = INT.y; y <= INT.y + INT.h; y += 150) {
+    ctx.beginPath();
+    ctx.moveTo(PLAY.x + WALL_T - 4, y);
+    ctx.lineTo(PLAY.x + WALL_T + 4, y);
+    ctx.stroke();
+  }
+  // Small level label stamp in top-left corner of interior
+  ctx.textAlign   = 'left';
+  ctx.fillStyle   = 'rgba(55, 90, 155, 0.30)';
+  ctx.font        = `10px 'Patrick Hand', cursive`;
+  ctx.fillText(`LVL-0${LEVEL.num}`, INT.x + 6, INT.y + 6);
+  // Top-right corner: grid ref
+  ctx.textAlign   = 'right';
+  ctx.fillText('GRID-A', INT.x + INT.w - 6, INT.y + 6);
   ctx.restore();
 }
 
@@ -498,6 +874,7 @@ function loop() {
   drawDoodles();
 
   if (state === 'MENU') {
+    drawRuledLines();
     updateDemo();
     drawDemo();
     drawMenu();
