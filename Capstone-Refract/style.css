@@ -1,0 +1,24 @@
+/* ── RESET ───────────────────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* ── BODY ────────────────────────────────────────────────────────────────── */
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #E8E4DC;   /* slightly darker than canvas so edges feel framed */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Patrick Hand', cursive;
+}
+
+/* ── CANVAS ──────────────────────────────────────────────────────────────── */
+#gameCanvas {
+  display: block;
+  cursor: crosshair;
+  /* Subtle shadow so canvas feels like paper sitting on a desk */
+  box-shadow:
+    0 4px 8px rgba(0,0,0,0.12),
+    0 12px 32px rgba(0,0,0,0.10),
+    inset 0 0 0 1px rgba(0,0,0,0.06);
+}
