@@ -40,7 +40,25 @@ const PLAY   = { x: 0, y: 0, w: 0, h: 0 };            // outer bounds
 const INT    = { x: 0, y: 0, w: 0, h: 0 };            // interior (laser zone)
 const SOURCE = { x: 0, y: 0 };                        // left wall — laser fires rightward
 const HOLE   = { x: 0, y: 0, r: 24 };                 // right wall — goal for the laser
-const LEVEL  = { num: 1, speed: 'SLOW', tiles: 3, maxLen: 120 };   // max 3 tiles at once, each at most 120px long
+// Each level: how fast the beam is, where it starts (src) and where the goal is
+// (hole) as fractions of the play area height, and its stone walls:
+// [direction, x, y, length] with x, y, length as fractions of the interior.
+const LEVELS = [
+  { speed: 'SLOW',      v: 2.6, src: 0.56, hole: 0.26,
+    walls: [['v', 0.45, 0.38, 0.50], ['v', 0.78, 0.36, 0.26]] },
+  { speed: 'MEDIUM',    v: 3.2, src: 0.30, hole: 0.78,
+    walls: [['v', 0.40, 0.10, 0.45], ['h', 0.55, 0.62, 0.30], ['v', 0.80, 0.50, 0.30]] },
+  { speed: 'FAST',      v: 3.8, src: 0.80, hole: 0.20,
+    walls: [['v', 0.30, 0.55, 0.45], ['v', 0.60, 0.05, 0.45], ['h', 0.62, 0.52, 0.20]] },
+  { speed: 'VERY FAST', v: 4.4, src: 0.50, hole: 0.50,
+    walls: [['v', 0.28, 0.28, 0.44], ['v', 0.52, 0.05, 0.40], ['v', 0.52, 0.58, 0.37], ['v', 0.78, 0.30, 0.40]] },
+  { speed: 'INSANE',    v: 5.0, src: 0.15, hole: 0.85,
+    walls: [['v', 0.25, 0.02, 0.30], ['h', 0.30, 0.45, 0.30], ['v', 0.60, 0.50, 0.48], ['v', 0.80, 0.55, 0.40]] },
+];
+
+// The level being played. tiles / maxLen are the same on every level:
+// max 3 tiles at once, each at most 120px long.
+const LEVEL  = { num: 1, speed: 'SLOW', v: 2.6, tiles: 3, maxLen: 120 };
 
 // ── PRE-RENDERED PAPER TEXTURE ───────────────────────────────────────────────
 const offPaper = document.createElement('canvas');
@@ -94,13 +112,12 @@ function layout() {
   PLAY.w = W - 120;  PLAY.h = H - 96;
   INT.x = PLAY.x + WALL_T;        INT.y = PLAY.y + WALL_T;
   INT.w = PLAY.w - WALL_T * 2;    INT.h = PLAY.h - WALL_T * 2;
-  SOURCE.x = INT.x;               SOURCE.y = PLAY.y + PLAY.h * 0.56;   // slightly below centre
-  HOLE.x   = INT.x + INT.w;       HOLE.y   = PLAY.y + PLAY.h * 0.26;   // upper area — laser misses unless reflected
+  SOURCE.x = INT.x;
+  HOLE.x   = INT.x + INT.w;
   buildPaper();
   buildDoodles();
   layoutMenu();
-  buildObstacles();
-  resetPlay();
+  applyLevel();
 }
 
 let resizeTimer = null;
@@ -320,10 +337,11 @@ const obstacles = [];       // { x, y, w, h }
 
 function buildObstacles() {
   obstacles.length = 0;
-  obstacles.push(
-    { x: INT.x + INT.w * 0.45, y: INT.y + INT.h * 0.38, w: 34, h: INT.h * 0.50 },   // blocks the straight shot
-    { x: INT.x + INT.w * 0.78, y: INT.y + INT.h * 0.36, w: 34, h: INT.h * 0.26 },   // guards the goal's approach
-  );
+  for (const [dir, fx, fy, flen] of LEVELS[LEVEL.num - 1].walls) {
+    const x = INT.x + INT.w * fx, y = INT.y + INT.h * fy;
+    obstacles.push(dir === 'v' ? { x, y, w: 34, h: INT.h * flen }
+                               : { x, y, w: INT.w * flen, h: 34 });
+  }
 }
 
 function inObstacle(px, py, pad = 0) {
@@ -358,7 +376,7 @@ const shot = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90, wait: 0, spark
 
 function resetShot() {
   shot.x = SOURCE.x + 10;  shot.y = SOURCE.y;
-  shot.dx = BEAM_SPEED;    shot.dy = 0;
+  shot.dx = LEVEL.v;       shot.dy = 0;
   shot.trail = [];  shot.wait = 0;
 }
 
@@ -394,6 +412,7 @@ function updateShot() {
     shot.sx = shot.x;  shot.sy = shot.y;
     shot.spark = 1;
     play.won = true;
+    play.total += play.misses;
     return;
   }
 
@@ -447,7 +466,7 @@ function clearTiles() {
 // ── WIN STATE ────────────────────────────────────────────────────────────────
 // The level is won when the beam reaches the goal hole. A beam that hits any
 // other part of a wall is a miss and simply fires again.
-const play = { won: false, misses: 0 };
+const play = { won: false, misses: 0, total: 0 };   // total = misses over all finished levels
 
 /** Fresh attempt: no tiles, beam back at the source, counters cleared */
 function resetPlay() {
@@ -455,6 +474,28 @@ function resetPlay() {
   resetShot();
   play.won    = false;
   play.misses = 0;
+}
+
+/** Set up the current level: speed, source/goal height, stone walls, fresh attempt */
+function applyLevel() {
+  const L = LEVELS[LEVEL.num - 1];
+  LEVEL.speed = L.speed;
+  LEVEL.v     = L.v;
+  SOURCE.y = PLAY.y + PLAY.h * L.src;
+  HOLE.y   = PLAY.y + PLAY.h * L.hole;
+  buildObstacles();
+  resetPlay();
+}
+
+function startGame() {
+  LEVEL.num  = 1;
+  play.total = 0;
+  applyLevel();
+}
+
+function nextLevel() {
+  LEVEL.num++;
+  applyLevel();
 }
 
 /** End point for the tile being drawn: kept inside the play area and within the length limit */
@@ -997,7 +1038,7 @@ function drawWin() {
   ctx.textAlign = 'center';
   ctx.fillStyle = C.accent;
   ctx.font = `bold 72px 'Caveat', cursive`;
-  ctx.fillText('GOAL!', W/2, py + 82);
+  ctx.fillText(LEVEL.num === LEVELS.length ? 'ALL CLEAR!' : 'GOAL!', W/2, py + 82);
   ctx.restore();
   wavyLine(W/2 - 110, W/2 + 110, py + 96, 3, C.accent);
 
@@ -1006,11 +1047,15 @@ function drawWin() {
   ctx.fillStyle = C.inkMid;
   ctx.font = `22px 'Patrick Hand', cursive`;
   const m = play.misses;
-  ctx.fillText(m === 0 ? 'Perfect — first shot!' : `Solved after ${m} miss${m === 1 ? '' : 'es'}`, W/2, py + 135);
+  if (LEVEL.num === LEVELS.length) {
+    ctx.fillText(`All ${LEVELS.length} levels cleared · ${play.total} miss${play.total === 1 ? '' : 'es'} in total`, W/2, py + 135);
+  } else {
+    ctx.fillText(m === 0 ? `Level ${LEVEL.num} — perfect, first shot!` : `Level ${LEVEL.num} — solved after ${m} miss${m === 1 ? '' : 'es'}`, W/2, py + 135);
+  }
   ctx.restore();
 
   const B = WIN_BTNS();
-  drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, '↻   PLAY AGAIN', C.accent);
+  drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, LEVEL.num === LEVELS.length ? '↻   PLAY AGAIN' : 'NEXT LEVEL   →', C.accent);
   drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '←   MENU',       C.inkMid);
 }
 
@@ -1265,7 +1310,7 @@ function drawHUD() {
 
   // Left: level
   ctx.textAlign = 'left';
-  ctx.fillText(`LEVEL  ${LEVEL.num}   ·   MISSES: ${play.misses}`, hx, hy);
+  ctx.fillText(`LEVEL  ${LEVEL.num}/${LEVELS.length}   ·   MISSES: ${play.misses}`, hx, hy);
 
   // Centre: speed
   ctx.textAlign = 'center';
@@ -1433,14 +1478,14 @@ canvas.addEventListener('click', e => {
   const p = toCanvas(e);
   if (state === 'MENU') {
     const R = menuRects();
-    if (inRect(p, R.play)) { resetPlay(); state = 'PLAYING'; }
+    if (inRect(p, R.play)) { startGame(); state = 'PLAYING'; }
     else if (inRect(p, R.how)) state = 'HOWTO';
   } else if (state === 'HOWTO') {
     if (inRect(p, HOWTO_BACK())) state = 'MENU';
   } else if (state === 'PLAYING') {
     if (play.won) {
       const B = WIN_BTNS();
-      if (inRect(p, B.again)) resetPlay();
+      if (inRect(p, B.again)) { if (LEVEL.num === LEVELS.length) startGame(); else nextLevel(); }
       else if (inRect(p, B.menu)) state = 'MENU';
     } else if (inRect(p, PLAY_MENU_BTN())) {
       state = 'MENU';
