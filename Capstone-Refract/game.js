@@ -99,6 +99,7 @@ function layout() {
   buildPaper();
   buildDoodles();
   layoutMenu();
+  buildObstacles();
   resetPlay();
 }
 
@@ -311,6 +312,45 @@ function resetBeam() {
   beam.trail = [];
 }
 
+// ── OBSTACLES ────────────────────────────────────────────────────────────────
+// Stone walls: solid blocks that absorb the beam (counts as a miss) and can't
+// have tiles drawn through them. Positions are fractions of the play area so
+// they fit any window size.
+const obstacles = [];       // { x, y, w, h }
+
+function buildObstacles() {
+  obstacles.length = 0;
+  obstacles.push(
+    { x: INT.x + INT.w * 0.45, y: INT.y + INT.h * 0.38, w: 34, h: INT.h * 0.50 },   // blocks the straight shot
+    { x: INT.x + INT.w * 0.78, y: INT.y + INT.h * 0.36, w: 34, h: INT.h * 0.26 },   // guards the goal's approach
+  );
+}
+
+function inObstacle(px, py, pad = 0) {
+  return obstacles.some(o => px > o.x - pad && px < o.x + o.w + pad && py > o.y - pad && py < o.y + o.h + pad);
+}
+
+/** Does the line from (x1,y1) to (x2,y2) pass through any obstacle? */
+function segmentHitsObstacle(x1, y1, x2, y2) {
+  const steps = Math.max(1, Math.ceil(Math.hypot(x2 - x1, y2 - y1) / 4));
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    if (inObstacle(x1 + (x2 - x1) * t, y1 + (y2 - y1) * t, 3)) return true;
+  }
+  return false;
+}
+
+function drawObstacles() {
+  for (const o of obstacles) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(110, 120, 140, 0.22)';
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+    ctx.restore();
+    hatchStrip(o.x, o.y, o.w, o.h);
+    sketchRect(o.x, o.y, o.w, o.h, 2.2, 'rgba(30, 30, 30, 0.7)');
+  }
+}
+
 // ── PLAY SCREEN BEAM ─────────────────────────────────────────────────────────
 // Fired from the source. Bounces off the player's tiles, and when it reaches a
 // wall it sparks, rests for a moment, then fires again.
@@ -354,6 +394,15 @@ function updateShot() {
     shot.sx = shot.x;  shot.sy = shot.y;
     shot.spark = 1;
     play.won = true;
+    return;
+  }
+
+  // Stone walls absorb the beam
+  if (inObstacle(shot.x, shot.y)) {
+    shot.sx = shot.x;  shot.sy = shot.y;
+    shot.spark = 1;
+    shot.wait = 90;
+    play.misses++;
     return;
   }
 
@@ -422,22 +471,24 @@ function limitTileEnd(x1, y1, px, py) {
 
 function startTile(px, py) {
   if (px < INT.x || px > INT.x + INT.w || py < INT.y || py > INT.y + INT.h) return;
+  if (inObstacle(px, py, 3)) return;
   drawing = { x1: px, y1: py, x2: px, y2: py };
 }
 
 function finishTile() {
   if (!drawing) return;
-  if (Math.hypot(drawing.x2 - drawing.x1, drawing.y2 - drawing.y1) >= 12) {   // ignore tiny accidental clicks
+  const blocked = segmentHitsObstacle(drawing.x1, drawing.y1, drawing.x2, drawing.y2);
+  if (!blocked && Math.hypot(drawing.x2 - drawing.x1, drawing.y2 - drawing.y1) >= 12) {   // ignore tiny clicks and tiles through stone
     tiles.push({ ...drawing, cd: 0 });
     if (tiles.length > LEVEL.tiles) oldTiles.push({ ...tiles.shift(), alpha: 1 });
   }
   drawing = null;
 }
 
-function drawTileLine(t, alpha, dashed) {
+function drawTileLine(t, alpha, dashed, col = C.ink) {
   ctx.save();
   ctx.globalAlpha = alpha;
-  ctx.strokeStyle = C.ink;
+  ctx.strokeStyle = col;
   ctx.lineWidth   = 2.5;
   ctx.lineCap     = 'round';
   ctx.shadowColor = 'rgba(0,0,0,0.12)';
@@ -464,7 +515,10 @@ function drawTiles() {
   }
   // The tile that will vanish next is drawn a little lighter once the set is full
   tiles.forEach((t, i) => drawTileLine(t, (tiles.length === LEVEL.tiles && i === 0) ? 0.6 : 1, false));
-  if (drawing) drawTileLine(drawing, 0.7, true);
+  if (drawing) {
+    const blocked = segmentHitsObstacle(drawing.x1, drawing.y1, drawing.x2, drawing.y2);
+    drawTileLine(drawing, 0.7, true, blocked ? C.accent : C.ink);
+  }
 }
 
 function layoutMenu() {
@@ -837,10 +891,11 @@ function drawMenu() {
 }
 
 // ── HOW TO PLAY ──────────────────────────────────────────────────────────────
-const HOWTO_BACK = () => ({ x: W/2 - 90, y: Math.max(40, H/2 - 240) + 440 + 20, w: 180, h: 46 });
+const HOWTO_PANEL_H = 490;
+const HOWTO_BACK = () => ({ x: W/2 - 90, y: Math.max(40, H/2 - HOWTO_PANEL_H/2 - 20) + HOWTO_PANEL_H + 20, w: 180, h: 46 });
 
 function drawHowTo() {
-  const pw = Math.min(760, W - 80), ph = 440;
+  const pw = Math.min(760, W - 80), ph = HOWTO_PANEL_H;
   const px = W/2 - pw/2, py = Math.max(40, H/2 - ph/2 - 20);
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
@@ -861,6 +916,7 @@ function drawHowTo() {
     ['You can not slow it down or stop it — you only steer it.',         false],
     ['Click and drag to draw a short tile — the beam bounces off it.',   false],
     ['Only 3 tiles at a time: draw a 4th and the oldest disappears.',    false],
+    ['Hatched stone walls absorb the beam — steer around them.',         false],
     ['Guide the beam into the GOAL hole on the right wall.',             true ],
   ];
   ctx.save();
@@ -908,6 +964,7 @@ function drawPlaying() {
   drawPlayArea();
   drawSource();
   drawHole();
+  drawObstacles();
   updateShot();
   drawTiles();
   drawShot();
