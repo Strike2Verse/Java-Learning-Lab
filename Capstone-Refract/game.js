@@ -45,7 +45,7 @@ const HOLE   = { x: 0, y: 0, r: 24 };                 // right wall — goal for
 // max 3 tiles at once, each at most 120px long.
 const TOTAL_LEVELS = 8;
 let   levelSpec    = null;   // layout of the level being played (kept when the window is resized)
-const LEVEL  = { num: 1, speed: 'SLOW', v: 2.6, tiles: 3, maxLen: 120 };
+const LEVEL  = { num: 1, speed: 'SLOW', v: 1.4, tiles: 3, maxLen: 120 };
 
 // ── PRE-RENDERED PAPER TEXTURE ───────────────────────────────────────────────
 const offPaper = document.createElement('canvas');
@@ -404,7 +404,7 @@ function rectsClash(a, b, mx, my) {
 }
 
 function speedName(v) {
-  return v < 3 ? 'SLOW' : v < 3.6 ? 'MEDIUM' : v < 4.2 ? 'FAST' : v < 4.8 ? 'VERY FAST' : 'INSANE';
+  return v < 1.7 ? 'SLOW' : v < 2.5 ? 'MEDIUM' : v < 3.3 ? 'FAST' : v < 4.0 ? 'VERY FAST' : 'INSANE';
 }
 
 /** What each level adds: 1 walls only · 2 stars · 3 portals · 4 blinking blocks · 5 sliding bars · 7 a second blinking block */
@@ -412,7 +412,7 @@ function generateLevel(n) {
   const mx = 40 / INT.w, my = 40 / INT.h;      // ~40px clearance around the path
   const tw = 34 / INT.w, th = 34 / INT.h;      // stone thickness as a fraction
   const hb = 0.22;                             // height of sliding / blinking bars
-  const v  = 2.6 + 0.35 * (n - 1);
+  const v  = 1.4 + 0.4 * (n - 1);              // starts slow, speeds up every level
   const spec = { v, speed: speedName(v), src: 0, hole: 0, walls: [], bars: [], stars: [], portals: [] };
 
   // 1. The hidden solution: straight shot, turn at x = a, turn again into the goal.
