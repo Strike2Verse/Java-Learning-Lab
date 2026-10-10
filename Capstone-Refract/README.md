@@ -43,7 +43,9 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - **Stone walls** (hatched blocks) absorb the beam — that counts as a miss. Tiles can't be drawn through them (the preview turns red)
 - When the beam hits a wall it sparks, rests for a moment, then fires again
 - The HUD shows `TILES: n/3` and the maximum length
-- **Win:** when the beam reaches the goal hole, a **GOAL!** screen shows how many misses it took, with **PLAY AGAIN** and **MENU** buttons
+- **5 levels:** each has its own beam speed (SLOW → MEDIUM → FAST → VERY FAST → INSANE), source and goal height, and stone wall layout; the HUD shows `LEVEL n/5` and the speed
+- **Win:** when the beam reaches the goal hole, a **GOAL!** screen shows how many misses it took, with **NEXT LEVEL** and **MENU** buttons
+- After level 5 an **ALL CLEAR!** screen shows your total misses, with **PLAY AGAIN** (back to level 1) and **MENU**
 - Hitting any other part of a wall counts as a miss; the HUD shows `MISSES: n`
 
 ### Controls
@@ -56,7 +58,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 | Click + drag (play screen) | Draw a tile (max length, 3 at a time) |
 | Click `HOW TO PLAY` | Open the how-to-play screen |
 | Click `← MENU` (play screen) | Return to the home screen |
-| Click `PLAY AGAIN` / `MENU` (after winning) | Restart the level / return to the home screen |
+| Click `NEXT LEVEL` / `PLAY AGAIN` / `MENU` (after winning) | Go to the next level (or restart from level 1 after the last) / return to the home screen |
 | `ESC` | Return to the home screen |
 
 ---
@@ -82,6 +84,7 @@ No installation. No compilation. Just:
 | 5 | Draw tiles with click + drag (max length, 3 at a time) and the beam bounces off them | ✅ Done |
 | 6 | Win condition: beam in the goal hole shows a GOAL! screen; misses are counted | ✅ Done |
 | 7 | Stone wall obstacles that absorb the beam and block tiles | ✅ Done |
+| 8 | 5 designed levels with a faster beam each level, NEXT LEVEL and ALL CLEAR screens | ✅ Done |
 
 ---
 
