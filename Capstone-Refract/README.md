@@ -30,13 +30,21 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - Land the beam in the **GOAL** ring to count a hit
 - **HOW TO PLAY** screen explains the game
 
+### Play screen
+- Opens from the **PLAY** button
+- Blueprint-style play area with hatched walls, the laser source on the left and the goal hole on the right
+- The laser beam (same trail-and-glow beam as the home screen) fires from the source, travels across and hits the right wall, then fires again
+- No mirrors yet, so the beam always misses the goal
+
 ### Controls
 
 | Input | Action |
 |-------|--------|
 | Click + drag a mirror's middle (home screen) | Move the mirror |
 | Click + drag a mirror's end (home screen) | Rotate / resize the mirror |
+| Click `PLAY` | Open the play screen |
 | Click `HOW TO PLAY` | Open the how-to-play screen |
+| Click `← MENU` (play screen) | Return to the home screen |
 | `ESC` | Return to the home screen |
 
 ---
@@ -56,8 +64,9 @@ No installation. No compilation. Just:
 | Phase | Description | Status |
 |-------|-------------|--------|
 | 1 | Title screen, paper/pencil theme, bouncing laser | ✅ Done |
-| 2 | Play area, laser source, goal hole (static, not connected to the PLAY button yet) | ✅ Done |
+| 2 | Play area, laser source, goal hole (static) | ✅ Done |
 | 3 | Home screen redesign: full-window layout, interactive beam and mirrors, how-to-play screen | ✅ Done |
+| 4 | PLAY button opens the play screen (moving beam, menu button to go back) | ✅ Done |
 
 ---
 

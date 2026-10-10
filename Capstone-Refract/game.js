@@ -40,7 +40,7 @@ const PLAY   = { x: 0, y: 0, w: 0, h: 0 };            // outer bounds
 const INT    = { x: 0, y: 0, w: 0, h: 0 };            // interior (laser zone)
 const SOURCE = { x: 0, y: 0 };                        // left wall — laser fires rightward
 const HOLE   = { x: 0, y: 0, r: 24 };                 // right wall — goal for the laser
-const LEVEL  = { num: 1, speed: 'SLOW', lines: 3 };
+const LEVEL  = { num: 1, speed: 'SLOW', mirrors: 3 };
 
 // ── PRE-RENDERED PAPER TEXTURE ───────────────────────────────────────────────
 const offPaper = document.createElement('canvas');
@@ -310,6 +310,49 @@ function resetBeam() {
   beam.trail = [];
 }
 
+// ── PLAY SCREEN BEAM ─────────────────────────────────────────────────────────
+// Fired from the source, travels right, hits the wall, then fires again.
+const shot = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90, wait: 0, spark: 0 };
+
+function resetShot() {
+  shot.x = SOURCE.x + 10;  shot.y = SOURCE.y;
+  shot.dx = BEAM_SPEED;    shot.dy = 0;
+  shot.trail = [];  shot.wait = 0;
+}
+
+function updateShot() {
+  shot.spark = Math.max(0, shot.spark - 0.03);
+  if (shot.wait > 0) {                       // beam is resting after hitting the wall
+    shot.trail.shift();                      // trail fades out
+    if (--shot.wait === 0) resetShot();
+    return;
+  }
+  shot.trail.push({ x: shot.x, y: shot.y });
+  if (shot.trail.length > shot.maxTrail) shot.trail.shift();
+  shot.x += shot.dx;
+  shot.y += shot.dy;
+  const wallX = INT.x + INT.w;
+  if (shot.x >= wallX) {                     // hit the right wall
+    shot.x = wallX;
+    shot.spark = 1;
+    shot.wait = 90;
+  }
+}
+
+/** Beam + the spark where it strikes the wall */
+function drawShot() {
+  drawBeamOf(shot, shot.wait === 0);
+  if (shot.spark > 0) {
+    const ex = INT.x + INT.w, ey = shot.y, r = 12 + shot.spark * 8;
+    const sg = ctx.createRadialGradient(ex, ey, 0, ex, ey, r);
+    sg.addColorStop(0,   `rgba(255, 180, 100, ${0.7 * shot.spark})`);
+    sg.addColorStop(0.5, `rgba(220,  80,  40, ${0.4 * shot.spark})`);
+    sg.addColorStop(1,    'rgba(192,  57,  43, 0)');
+    ctx.fillStyle = sg;
+    ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 function layoutMenu() {
   mirrors.length = 0;
   mirrors.push(
@@ -319,6 +362,7 @@ function layoutMenu() {
   );
   goal.x = W - 110;  goal.y = H * 0.50;
   resetBeam();
+  resetShot();
 }
 
 function reflectOff(m) {
@@ -581,33 +625,36 @@ function drawMirrors() {
   }
 }
 
-/** The beam itself — trail + glowing head (unchanged design) */
-function drawBeam() {
+/** The beam itself — trail + glowing head (same design on every screen) */
+function drawBeam() { drawBeamOf(beam, true); }
+
+function drawBeamOf(b, showHead) {
   // Laser trail
   ctx.save();
-  for (let i = 1; i < beam.trail.length; i++) {
-    const t = i / beam.trail.length;
+  for (let i = 1; i < b.trail.length; i++) {
+    const t = i / b.trail.length;
     ctx.strokeStyle = `rgba(192, 57, 43, ${t * 0.55})`;
     ctx.lineWidth   = 1 + t * 1.8;
     ctx.lineCap     = 'round';
     ctx.beginPath();
-    ctx.moveTo(beam.trail[i-1].x, beam.trail[i-1].y);
-    ctx.lineTo(beam.trail[i].x, beam.trail[i].y);
+    ctx.moveTo(b.trail[i-1].x, b.trail[i-1].y);
+    ctx.lineTo(b.trail[i].x, b.trail[i].y);
     ctx.stroke();
   }
   ctx.restore();
+  if (!showHead) return;
 
   // Laser head glow
-  const gr = ctx.createRadialGradient(beam.x, beam.y, 0, beam.x, beam.y, 16);
+  const gr = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, 16);
   gr.addColorStop(0, 'rgba(192, 57, 43, 0.75)');
   gr.addColorStop(1, 'rgba(192, 57, 43, 0)');
   ctx.fillStyle = gr;
-  ctx.beginPath(); ctx.arc(beam.x, beam.y, 16, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(b.x, b.y, 16, 0, Math.PI*2); ctx.fill();
   // Hot core
   ctx.fillStyle = '#FF6B6B';
-  ctx.beginPath(); ctx.arc(beam.x, beam.y, 3.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(b.x, b.y, 3.5, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = '#FFFFFF';
-  ctx.beginPath(); ctx.arc(beam.x, beam.y, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(b.x, b.y, 1.5, 0, Math.PI*2); ctx.fill();
 }
 
 /** Red outline that flares when the beam touches a piece of UI */
@@ -740,13 +787,18 @@ function drawCross(x, y, size) {
   ctx.restore();
 }
 
-// ── PHASE 2: PLAY AREA ───────────────────────────────────────────────────────
+// ── PLAY SCREEN ──────────────────────────────────────────────────────────────
+const PLAY_MENU_BTN = () => ({ x: PLAY.x, y: 8, w: 120, h: 32 });
+
 function drawPlaying() {
   drawPlayArea();
-  drawStaticLaser();
   drawSource();
   drawHole();
+  updateShot();
+  drawShot();
   drawHUD();
+  const b = PLAY_MENU_BTN();
+  drawBtn(b.x, b.y, b.w, b.h, '←  MENU', C.inkMid);
 }
 
 /** Full play area: interior fill + hatched walls + border */
@@ -980,72 +1032,6 @@ function drawHole() {
   ctx.restore();
 }
 
-/** Static laser beam — fires RIGHT from source, hits right wall */
-function drawStaticLaser() {
-  const sx = SOURCE.x + 10,  sy = SOURCE.y;
-  const ex = INT.x + INT.w,  ey = sy;   // hits right wall at same height
-  const pulse = 0.5 + 0.5 * Math.sin(frame * 0.06);
-
-  // Wide soft glow pass
-  ctx.save();
-  ctx.strokeStyle = `rgba(192, 57, 43, ${0.12 + pulse * 0.06})`;
-  ctx.lineWidth   = 18;
-  ctx.lineCap     = 'round';
-  ctx.beginPath();
-  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
-  ctx.stroke();
-
-  // Mid glow
-  ctx.strokeStyle = `rgba(210, 70, 50, ${0.25 + pulse * 0.10})`;
-  ctx.lineWidth   = 7;
-  ctx.beginPath();
-  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
-  ctx.stroke();
-
-  // Core beam
-  ctx.strokeStyle = `rgba(230, 90, 70, ${0.75 + pulse * 0.15})`;
-  ctx.lineWidth   = 2;
-  ctx.beginPath();
-  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
-  ctx.stroke();
-
-  // Hot white centre
-  ctx.strokeStyle = `rgba(255, 220, 210, ${0.6 + pulse * 0.2})`;
-  ctx.lineWidth   = 0.8;
-  ctx.beginPath();
-  ctx.moveTo(sx, sy); ctx.lineTo(ex, ey);
-  ctx.stroke();
-  ctx.restore();
-
-  // Wall-impact spark (where laser hits the right wall — NOT the hole)
-  const spark = 0.5 + 0.5 * Math.sin(frame * 0.14);
-  const sg = ctx.createRadialGradient(ex, ey, 0, ex, ey, 12 + spark * 5);
-  sg.addColorStop(0,   `rgba(255, 180, 100, ${0.7 + spark * 0.2})`);
-  sg.addColorStop(0.5, `rgba(220,  80,  40, ${0.4 + spark * 0.1})`);
-  sg.addColorStop(1,    'rgba(192,  57,  43, 0)');
-  ctx.fillStyle = sg;
-  ctx.beginPath();
-  ctx.arc(ex, ey, 12 + spark * 5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Hint annotation: laser missing hole
-  ctx.save();
-  ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-  ctx.setLineDash([4, 5]);
-  ctx.lineWidth = 1;
-  // Dashed vertical guide from laser Y to hole Y
-  ctx.beginPath();
-  ctx.moveTo(ex - 60, ey);
-  ctx.lineTo(ex - 60, HOLE.y);
-  ctx.stroke();
-  ctx.setLineDash([]);
-  ctx.fillStyle = C.inkLight;
-  ctx.font      = `12px 'Patrick Hand', cursive`;
-  ctx.textAlign = 'center';
-  ctx.fillText('← draw a reflector line to redirect!', INT.x + INT.w * 0.52, sy - 14);
-  ctx.restore();
-}
-
 /** HUD strip below the play area */
 function drawHUD() {
   const hx = PLAY.x, hy = PLAY.y + PLAY.h + 8;
@@ -1065,10 +1051,10 @@ function drawHUD() {
   ctx.fillStyle = C.inkLight;
   ctx.fillText(`SPEED: ${LEVEL.speed}`, hx + hw / 2, hy);
 
-  // Right: lines remaining + ESC tip
+  // Right: mirrors available + ESC tip
   ctx.textAlign = 'right';
   ctx.fillStyle = C.inkMid;
-  ctx.fillText(`LINES: ${LEVEL.lines}   ·   ESC = menu`, hx + hw, hy);
+  ctx.fillText(`MIRRORS: ${LEVEL.mirrors}   ·   ESC = menu`, hx + hw, hy);
   ctx.restore();
 }
 
@@ -1162,12 +1148,12 @@ function loop() {
 
   // Cursor reflects what is under the mouse
   let cur = 'default';
-  if (state === 'PLAYING') cur = 'crosshair';
+  if (state === 'PLAYING') cur = inRect(mouse, PLAY_MENU_BTN()) ? 'pointer' : 'crosshair';
   else if (state === 'MENU') {
     const R = menuRects();
     if (drag) cur = 'grabbing';
     else if (hoverMirror) cur = 'grab';
-    else if (inRect(mouse, R.how)) cur = 'pointer';
+    else if (inRect(mouse, R.play) || inRect(mouse, R.how)) cur = 'pointer';
   } else if (state === 'HOWTO') {
     if (inRect(mouse, HOWTO_BACK())) cur = 'pointer';
   }
@@ -1211,10 +1197,12 @@ canvas.addEventListener('click', e => {
   const p = toCanvas(e);
   if (state === 'MENU') {
     const R = menuRects();
-    // PLAY does nothing yet — the play screen will be connected later
-    if (inRect(p, R.how)) state = 'HOWTO';
+    if (inRect(p, R.play)) { resetShot(); state = 'PLAYING'; }
+    else if (inRect(p, R.how)) state = 'HOWTO';
   } else if (state === 'HOWTO') {
     if (inRect(p, HOWTO_BACK())) state = 'MENU';
+  } else if (state === 'PLAYING') {
+    if (inRect(p, PLAY_MENU_BTN())) state = 'MENU';
   }
 });
 
