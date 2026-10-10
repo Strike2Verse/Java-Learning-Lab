@@ -40,6 +40,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - **Click + drag** inside the play area to draw a tile; the beam bounces off it
 - Only 3 tiles at a time — the 4th makes the oldest fade away (the oldest is shown a little lighter)
 - Tiles have a maximum length (120px) — a dashed preview line stops growing at the limit
+- **Stone walls** (hatched blocks) absorb the beam — that counts as a miss. Tiles can't be drawn through them (the preview turns red)
 - When the beam hits a wall it sparks, rests for a moment, then fires again
 - The HUD shows `TILES: n/3` and the maximum length
 - **Win:** when the beam reaches the goal hole, a **GOAL!** screen shows how many misses it took, with **PLAY AGAIN** and **MENU** buttons
@@ -80,6 +81,7 @@ No installation. No compilation. Just:
 | 4 | PLAY button opens the play screen (moving beam, menu button to go back) | ✅ Done |
 | 5 | Draw tiles with click + drag (max length, 3 at a time) and the beam bounces off them | ✅ Done |
 | 6 | Win condition: beam in the goal hole shows a GOAL! screen; misses are counted | ✅ Done |
+| 7 | Stone wall obstacles that absorb the beam and block tiles | ✅ Done |
 
 ---
 
