@@ -26,6 +26,6 @@ A laser fires from the left wall and keeps moving — you can't stop it, you can
 
 **Tech:** HTML5 Canvas · Vanilla JavaScript · Vector Physics · Real-time Rendering
 
-**Status:** 🟡 In Progress — Phase 5 complete (play screen: draw tiles, beam bounces off them)
+**Status:** 🟡 In Progress — Phase 6 complete (draw tiles, beam bounces, win screen when it reaches the goal)
 
 📁 [`Capstone-Refract/`](Capstone-Refract/) — [Full details →](Capstone-Refract/README.md)

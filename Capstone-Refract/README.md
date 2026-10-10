@@ -42,7 +42,8 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - Tiles have a maximum length (120px) — a dashed preview line stops growing at the limit
 - When the beam hits a wall it sparks, rests for a moment, then fires again
 - The HUD shows `TILES: n/3` and the maximum length
-- Reaching the goal hole is not detected yet
+- **Win:** when the beam reaches the goal hole, a **GOAL!** screen shows how many misses it took, with **PLAY AGAIN** and **MENU** buttons
+- Hitting any other part of a wall counts as a miss; the HUD shows `MISSES: n`
 
 ### Controls
 
@@ -54,6 +55,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 | Click + drag (play screen) | Draw a tile (max length, 3 at a time) |
 | Click `HOW TO PLAY` | Open the how-to-play screen |
 | Click `← MENU` (play screen) | Return to the home screen |
+| Click `PLAY AGAIN` / `MENU` (after winning) | Restart the level / return to the home screen |
 | `ESC` | Return to the home screen |
 
 ---
@@ -77,6 +79,7 @@ No installation. No compilation. Just:
 | 3 | Home screen redesign: full-window layout, interactive beam and mirrors, how-to-play screen | ✅ Done |
 | 4 | PLAY button opens the play screen (moving beam, menu button to go back) | ✅ Done |
 | 5 | Draw tiles with click + drag (max length, 3 at a time) and the beam bounces off them | ✅ Done |
+| 6 | Win condition: beam in the goal hole shows a GOAL! screen; misses are counted | ✅ Done |
 
 ---
 
