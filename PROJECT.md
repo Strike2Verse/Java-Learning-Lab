@@ -20,12 +20,12 @@ You control a data packet navigating a decaying circuit grid. Reach the Exit nod
 
 ## Project 2 — Refract
 
-> **Real-time laser drawing puzzle** built in HTML5 Canvas + JavaScript
+> **Laser-steering puzzle** built in HTML5 Canvas + JavaScript
 
-A laser fires from the left wall. You click and drag to draw reflector lines on the screen. Guide the laser into the hole before it hits a wall. Speed increases every level.
+A laser fires from the left wall and keeps moving — you can't stop it, you can only steer it. Move mirrors to bounce the beam and guide it into the goal hole on the right wall.
 
 **Tech:** HTML5 Canvas · Vanilla JavaScript · Vector Physics · Real-time Rendering
 
-**Status:** 🟡 In Progress — Phase 1 of 12 complete
+**Status:** 🟡 In Progress — Phase 3 complete (interactive home screen)
 
 📁 [`Capstone-Refract/`](Capstone-Refract/) — [Full details →](Capstone-Refract/README.md)
