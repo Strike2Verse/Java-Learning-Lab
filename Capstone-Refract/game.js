@@ -47,6 +47,244 @@ const TOTAL_LEVELS = 8;
 let   levelSpec    = null;   // layout of the level being played (kept when the window is resized)
 const LEVEL  = { num: 1, speed: 'SLOW', v: 1.4, tiles: 3, maxLen: 120 };
 
+// ── SOUND ────────────────────────────────────────────────────────────────────
+// Every sound is synthesised with the Web Audio API — no audio files. All notes
+// come from one pentatonic scale, so whatever the beam does always sounds
+// musical: bounces play a walking melody, stars climb the scale, and a looping
+// background song (bass, arpeggio, melody, drums) plays underneath — it gets
+// faster, changes key and adds more layers as the levels go up. Press M to mute.
+const sfx = (() => {
+  let ac = null, master = null, echo = null;
+  let muted = false;
+  try { muted = localStorage.getItem('refractMuted') === '1'; } catch (e) { /* storage blocked — stay unmuted */ }
+
+  const SCALE = [0, 2, 4, 7, 9];                         // major pentatonic (semitones)
+  const ROOT  = 261.63;                                  // middle C
+  const noteHz = i => ROOT * 2 ** ((SCALE[i % 5] + 12 * Math.floor(i / 5)) / 12);
+  const lastPlayed = {};
+
+  /** Browsers only allow audio after a click or key press — call this from one */
+  function unlock() {
+    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ac = new AC();
+    master = ac.createGain();
+    master.gain.value = muted ? 0 : 0.55;
+    master.connect(ac.destination);
+
+    // A soft echo that every sound can send some of itself into
+    const delay = ac.createDelay();   delay.delayTime.value = 0.24;
+    const fb    = ac.createGain();    fb.gain.value  = 0.33;
+    const wet   = ac.createGain();    wet.gain.value = 0.3;
+    const dull  = ac.createBiquadFilter();  dull.type = 'lowpass';  dull.frequency.value = 2200;
+    echo = ac.createGain();
+    echo.connect(delay);  delay.connect(dull);
+    dull.connect(fb);  fb.connect(delay);
+    dull.connect(wet); wet.connect(master);
+  }
+
+  /** false if audio is off or this sound played too recently (stops machine-gun repeats) */
+  function ready(name, gap) {
+    if (!ac || muted) return false;
+    const t = ac.currentTime;
+    if (lastPlayed[name] !== undefined && t - lastPlayed[name] < gap) return false;
+    lastPlayed[name] = t;
+    return true;
+  }
+
+  /** One note: quick fade-in, exponential fade-out, optional pitch glide and echo send */
+  function tone({ f, glide, type = 'sine', at = 0, dur = 0.3, vol = 0.2, send = 0.5, to = master }) {
+    const t0 = ac.currentTime + Math.max(0, at);
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f, t0);
+    if (glide) o.frequency.exponentialRampToValueAtTime(glide, t0 + dur);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g);  g.connect(to);
+    if (send) { const s = ac.createGain(); s.gain.value = send; g.connect(s); s.connect(echo); }
+    o.start(t0);  o.stop(t0 + dur + 0.05);
+  }
+
+  /** Glassy bell: the note plus a quiet octave and a quieter fifth above it */
+  function bell(f, at = 0, vol = 0.18, dur = 0.55, send = 0.5, to = master) {
+    tone({ f,           at, dur,        vol,        send, to });
+    tone({ f: f * 2,    at, dur: dur * 0.6, vol: vol * 0.35, send, to });
+    tone({ f: f * 3,    at, dur: dur * 0.3, vol: vol * 0.12, send, to });
+  }
+
+  /** Short burst of filtered noise — gives the thud its body */
+  function thump(at, dur, vol, cutoff, kind = 'lowpass', to = master) {
+    const n = Math.floor(ac.sampleRate * dur);
+    const buf = ac.createBuffer(1, n, ac.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+    const src = ac.createBufferSource(), lp = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = buf;  lp.type = kind;  lp.frequency.value = cutoff;  g.gain.value = vol;
+    src.connect(lp);  lp.connect(g);  g.connect(to);
+    src.start(ac.currentTime + Math.max(0, at));
+  }
+
+  // ── Background song ──────────────────────────────────────────────────────
+  // A four-bar loop (Am – F – C – G) built from eighth-note steps and scheduled
+  // slightly ahead of time so the rhythm stays steady. Higher levels play it
+  // faster, in a higher key, and add layers: melody (2+), hi-hat (3+), kick (4+).
+  const PROGRESSION = [                                   // semitones above the key's C: [bass note, three chord tones]
+    [9, [9, 12, 16]],                                     // Am
+    [5, [5,  9, 12]],                                     // F
+    [0, [0,  4,  7]],                                     // C
+    [7, [7, 11, 14]],                                     // G
+  ];
+  const KEY_SHIFT = [0, 0, 2, 2, 3, 5, 5, 7];             // key change per level
+  const ARP       = [0, 1, 2, 1, 2, 1, 0, 1];             // which chord tone each eighth note plays
+  let song = null;                                        // { next, step, level, ducked, timer }
+  let bus  = null;                                        // all music goes through here (volume / ducking)
+
+  const keyHz = (semi, level) => ROOT * 2 ** ((semi + KEY_SHIFT[(level - 1) % KEY_SHIFT.length]) / 12);
+
+  function playStep(step, t, level) {
+    const at   = t - ac.currentTime;
+    const bar  = Math.floor(step / 8) % PROGRESSION.length;
+    const i    = step % 8;
+    const [bassSemi, chord] = PROGRESSION[bar];
+
+    // Bass: root on beats 1 and 3, a lighter note on the off-beat in between
+    if (i === 0 || i === 4) {
+      const f = keyHz(bassSemi, level) / 2;
+      tone({ f, type: 'triangle', at, dur: 0.55, vol: 0.3,  send: 0.1, to: bus });
+      tone({ f: f * 2, type: 'sine', at, dur: 0.3, vol: 0.08, send: 0.1, to: bus });
+    } else if (i === 6) {
+      tone({ f: keyHz(bassSemi + 7, level) / 2, type: 'triangle', at, dur: 0.25, vol: 0.14, send: 0.1, to: bus });
+    }
+
+    // Arpeggio: the chord tones going round — the part that carries the tune
+    const tone2 = chord[ARP[i]] + (i === 7 && Math.random() < 0.4 ? 12 : 0);   // sometimes sparkles an octave up
+    tone({ f: keyHz(tone2, level) * 2, type: 'triangle', at, dur: 0.38, vol: 0.12, send: 0.35, to: bus });
+
+    // Melody (level 2+): a few random notes from the pentatonic scale, mostly on the strong steps
+    if (level >= 2 && (i === 0 || i === 3 || i === 6) && Math.random() < 0.6) {
+      bell(keyHz(SCALE[Math.floor(Math.random() * 5)] + 12, level) * 2, at, 0.1, 0.7, 0.6, bus);
+    }
+
+    // Hi-hat on the off-beats (level 3+), kick on beats 1 and 3 (level 4+)
+    if (level >= 3 && i % 2 === 1) thump(at, 0.05, 0.1, 6500, 'highpass', bus);
+    if (level >= 4 && (i === 0 || i === 4)) {
+      tone({ f: 150, glide: 45, at, dur: 0.18, vol: 0.4, send: 0, to: bus });
+    }
+  }
+
+  function tick() {
+    if (!song) return;
+    const now = ac.currentTime;
+    if (song.next < now - 0.1) song.next = now + 0.05;    // tab was in the background — skip ahead instead of catching up
+    while (song.next < now + 0.25) {
+      playStep(song.step, song.next, song.level);
+      song.next += 60 / (80 + 7 * (song.level - 1)) / 2;  // 80 bpm on level 1, 129 bpm on level 8
+      song.step++;
+    }
+  }
+
+  /** Keeps the song running: pass the level it should sound like and whether to turn it down (win fanfare) */
+  function music(level, ducked) {
+    if (!ac) return;
+    if (!song) {
+      bus = ac.createGain();  bus.gain.value = 0;  bus.connect(master);
+      song = { next: ac.currentTime + 0.1, step: 0, level, timer: setInterval(tick, 60) };
+    }
+    song.level = level;
+    bus.gain.setTargetAtTime(ducked ? 0.18 : 0.7, ac.currentTime, 0.25);
+  }
+
+  return {
+    unlock, music,
+    isMuted: () => muted,
+
+    toggle() {
+      muted = !muted;
+      try { localStorage.setItem('refractMuted', muted ? '1' : '0'); } catch (e) { /* ignore */ }
+      if (master) master.gain.setTargetAtTime(muted ? 0 : 0.55, ac.currentTime, 0.05);
+      if (!muted) { unlock(); bell(noteHz(7), 0, 0.14, 0.3); }
+    },
+
+    /** Beam bounces off a tile: n = how many bounces this shot has made, so the notes walk up and down */
+    bounce(n) {
+      if (!ready('bounce', 0.05)) return;
+      bell(noteHz(5 + [0, 2, 1, 3, 2, 4, 3, 5][n % 8]), 0, 0.17, 0.6);
+    },
+
+    /** Beam leaves the source */
+    fire() {
+      if (!ready('fire', 0.1)) return;
+      tone({ f: 1100, glide: 320, type: 'triangle', dur: 0.16, vol: 0.05, send: 0.2 });
+    },
+
+    /** Beam absorbed by stone / wall: a soft thud and a falling note */
+    miss() {
+      if (!ready('miss', 0.1)) return;
+      tone({ f: 190, glide: 55, dur: 0.28, vol: 0.28, send: 0.15 });
+      thump(0, 0.14, 0.18, 700);
+    },
+
+    /** Beam reached the goal before collecting every star */
+    denied() {
+      if (!ready('denied', 0.2)) return;
+      tone({ f: 330, type: 'triangle', at: 0.04, dur: 0.18, vol: 0.12, send: 0.3 });
+      tone({ f: 247, type: 'triangle', at: 0.2,  dur: 0.3,  vol: 0.12, send: 0.3 });
+    },
+
+    /** Star collected: k = how many stars this level are already collected, each one higher up the scale */
+    star(k) {
+      if (!ready('star', 0.05)) return;
+      const i = 7 + Math.min(k, 3) * 2;
+      bell(noteHz(i), 0, 0.16, 0.5);
+      bell(noteHz(i + 2), 0.08, 0.12, 0.7);
+    },
+
+    /** Beam jumps through a portal: a quick upward whoosh */
+    portal() {
+      if (!ready('portal', 0.15)) return;
+      tone({ f: 240, glide: 1300, dur: 0.24, vol: 0.09, send: 0.6 });
+      tone({ f: 400, glide: 1800, type: 'triangle', at: 0.03, dur: 0.22, vol: 0.05, send: 0.6 });
+    },
+
+    /** Player finishes drawing a tile: longer tile, higher pluck */
+    tile(len) {
+      if (!ready('tile', 0.05)) return;
+      bell(noteHz(2 + Math.round(Math.min(len, 120) / 120 * 4)), 0, 0.1, 0.22, 0.25);
+    },
+
+    /** Level solved. The last level gets a longer, higher fanfare */
+    win(allClear) {
+      if (!ac || muted) return;
+      const run = allClear ? [0, 2, 4, 6, 7, 9, 10, 12] : [0, 2, 4, 6, 8];   // steps up the scale, from the high C
+      run.forEach((step, k) => bell(noteHz(5 + step), k * 0.1, 0.17, 0.9, 0.6));
+      const end = run.length * 0.1;
+      [0, 4, 7, 12].forEach(semi =>                                            // closing C-major chord
+        tone({ f: ROOT * 2 * 2 ** (semi / 12), at: end, dur: allClear ? 2.4 : 1.4, vol: 0.09, send: 0.7 }));
+    },
+
+    /** Button pressed */
+    click() {
+      if (!ready('click', 0.05)) return;
+      bell(noteHz(7), 0, 0.1, 0.18, 0.2);
+    },
+
+    /** Menu beam touches a mirror or a button */
+    menuBounce() {
+      if (!ready('menu', 0.08)) return;
+      bell(noteHz(3 + Math.floor(Math.random() * 5)), 0, 0.07, 0.45, 0.6);
+    },
+
+    /** Menu beam passes through the goal ring */
+    chime() {
+      if (!ready('chime', 0.3)) return;
+      bell(noteHz(10), 0, 0.1, 0.6);
+      bell(noteHz(12), 0.1, 0.08, 0.8);
+    },
+  };
+})();
+
 // ── PRE-RENDERED PAPER TEXTURE ───────────────────────────────────────────────
 const offPaper = document.createElement('canvas');
 function buildPaper() {
@@ -667,12 +905,13 @@ function drawPlayMessage() {
 // ── PLAY SCREEN BEAM ─────────────────────────────────────────────────────────
 // Fired from the source. Bounces off the player's tiles, and when it reaches a
 // wall it sparks, rests for a moment, then fires again.
-const shot = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90, wait: 0, spark: 0, sx: 0, sy: 0, pcd: 0 };
+const shot = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90, wait: 0, spark: 0, sx: 0, sy: 0, pcd: 0, bn: 0 };   // bn = bounces so far this shot (picks the bounce note)
 
 function resetShot() {
   shot.x = SOURCE.x + 10;  shot.y = SOURCE.y;
   shot.dx = LEVEL.v;       shot.dy = 0;
-  shot.trail = [];  shot.wait = 0;  shot.pcd = 0;
+  shot.trail = [];  shot.wait = 0;  shot.pcd = 0;  shot.bn = 0;
+  sfx.fire();
 }
 
 /** The beam ends here: spark, short rest, then it fires again */
@@ -682,6 +921,7 @@ function beamMiss() {
   // random rest, so sliding / blinking blocks can't lock-step with the beam (longer random range when the level has any)
   shot.wait  = levelSpec.bars.length ? 60 + Math.floor(Math.random() * 200) : 90 + Math.floor(Math.random() * 50);
   play.misses++;
+  sfx.miss();
 }
 
 /** If the beam is inside a portal, move it to the other end (same direction) */
@@ -691,6 +931,7 @@ function portalJump() {
       if (Math.hypot(shot.x - from.x, shot.y - from.y) < p.r) {
         shot.x = to.x;  shot.y = to.y;
         shot.trail = [];                                  // no line across the screen
+        sfx.portal();
         shot.pcd = Math.ceil(2 * p.r / LEVEL.v) + 4;      // ignore portals until it has left this one
         return;
       }
@@ -717,6 +958,7 @@ function updateShot() {
     if (t.cd > 0) { t.cd--; continue; }
     if (segmentIntersect(px, py, nx, ny, t.x1, t.y1, t.x2, t.y2)) {
       reflectOff(t, shot);
+      sfx.bounce(shot.bn++);
       t.cd = 8;                              // stops double-bounce on the same tile
       nx = px + shot.dx;  ny = py + shot.dy;
     }
@@ -729,7 +971,7 @@ function updateShot() {
 
   // Stars
   for (const st of stars) {
-    if (!st.got && Math.hypot(shot.x - st.x, shot.y - st.y) < 18) { st.got = true; st.flash = 1; }
+    if (!st.got && Math.hypot(shot.x - st.x, shot.y - st.y) < 18) { st.got = true; st.flash = 1; sfx.star(stars.filter(s => s.got).length - 1); }
   }
 
   // Goal hole (only opens once every star is collected)
@@ -737,6 +979,7 @@ function updateShot() {
     if (starsLeft() > 0) {
       play.msg = 'Collect all the stars first!';
       play.msgT = 150;
+      sfx.denied();
       beamMiss();
       return;
     }
@@ -745,6 +988,7 @@ function updateShot() {
     shot.spark = 1;
     play.won = true;
     play.total += play.misses;
+    sfx.win(LEVEL.num === TOTAL_LEVELS);
     return;
   }
 
@@ -848,6 +1092,7 @@ function finishTile() {
   const blocked = segmentHitsObstacle(drawing.x1, drawing.y1, drawing.x2, drawing.y2);
   if (!blocked && Math.hypot(drawing.x2 - drawing.x1, drawing.y2 - drawing.y1) >= 12) {   // ignore tiny clicks and tiles through stone
     tiles.push({ ...drawing, cd: 0 });
+    sfx.tile(Math.hypot(drawing.x2 - drawing.x1, drawing.y2 - drawing.y1));
     if (tiles.length > LEVEL.tiles) oldTiles.push({ ...tiles.shift(), alpha: 1 });
   }
   drawing = null;
@@ -922,6 +1167,7 @@ function updateBeam() {
     if (m.cd > 0) { m.cd--; continue; }
     if (segmentIntersect(px, py, nx, ny, m.x1, m.y1, m.x2, m.y2)) {
       reflectOff(m);
+      sfx.menuBounce();
       m.cd = 8;                       // stops double-bounce on the same mirror
       nx = px + beam.dx;  ny = py + beam.dy;
     }
@@ -937,6 +1183,7 @@ function updateBeam() {
       if (fromSide) beam.dx *= -1; else beam.dy *= -1;
       nx = px + beam.dx;  ny = py + beam.dy;
       hit[key] = 1;
+      sfx.menuBounce();
     }
   }
 
@@ -950,7 +1197,7 @@ function updateBeam() {
   // Goal ring: count each time the beam enters it
   const d = Math.hypot(beam.x - goal.x, beam.y - goal.y);
   if (d < goal.r) {
-    if (!goal.inside) { goal.hits++; goal.flash = 1; goal.inside = true; }
+    if (!goal.inside) { goal.hits++; goal.flash = 1; goal.inside = true; sfx.chime(); }
   } else {
     goal.inside = false;
   }
@@ -1655,7 +1902,7 @@ function drawHUD() {
   // Right: tiles in use + length limit + ESC tip
   ctx.textAlign = 'right';
   ctx.fillStyle = C.inkMid;
-  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   ESC = menu`, hx + hw, hy);
+  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   ESC = menu   ·   M = ${sfx.isMuted() ? 'sound off' : 'sound on'}`, hx + hw, hy);
   ctx.restore();
 }
 
@@ -1726,6 +1973,7 @@ function drawBlueprintAnnotations() {
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 function loop() {
   frame++;
+  sfx.music(state === 'PLAYING' ? LEVEL.num : 1, state === 'PLAYING' && play.won);
   drawPaper();
   drawGrid();
 
@@ -1791,6 +2039,7 @@ canvas.addEventListener('pointermove', e => {
 });
 
 canvas.addEventListener('pointerdown', e => {
+  sfx.unlock();                      // browsers only allow sound after a click
   const p = toCanvas(e);
   mouse.x = p.x;  mouse.y = p.y;
   if (state === 'PLAYING') {
@@ -1813,22 +2062,25 @@ canvas.addEventListener('click', e => {
   const p = toCanvas(e);
   if (state === 'MENU') {
     const R = menuRects();
-    if (inRect(p, R.play)) { startGame(); state = 'PLAYING'; }
-    else if (inRect(p, R.how)) state = 'HOWTO';
+    if (inRect(p, R.play)) { sfx.click(); startGame(); state = 'PLAYING'; }
+    else if (inRect(p, R.how)) { sfx.click(); state = 'HOWTO'; }
   } else if (state === 'HOWTO') {
-    if (inRect(p, HOWTO_BACK())) state = 'MENU';
+    if (inRect(p, HOWTO_BACK())) { sfx.click(); state = 'MENU'; }
   } else if (state === 'PLAYING') {
     if (play.won) {
       const B = WIN_BTNS();
-      if (inRect(p, B.again)) { if (LEVEL.num === TOTAL_LEVELS) startGame(); else nextLevel(); }
-      else if (inRect(p, B.menu)) state = 'MENU';
+      if (inRect(p, B.again)) { sfx.click(); if (LEVEL.num === TOTAL_LEVELS) startGame(); else nextLevel(); }
+      else if (inRect(p, B.menu)) { sfx.click(); state = 'MENU'; }
     } else if (inRect(p, PLAY_MENU_BTN())) {
+      sfx.click();
       state = 'MENU';
     }
   }
 });
 
 document.addEventListener('keydown', e => {
+  sfx.unlock();
+  if (e.key === 'm' || e.key === 'M') sfx.toggle();
   if (e.key === 'Escape' && state !== 'MENU') { drawing = null; state = 'MENU'; }
 });
 
