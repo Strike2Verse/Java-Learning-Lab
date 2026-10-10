@@ -11,11 +11,14 @@
 A laser beam fires from the **emitter** on the left wall and keeps moving — you can't slow it down or stop it.
 The only thing you control is **its direction**.
 
-Place and move **mirrors** (reflector lines). When the beam hits a mirror it bounces off at the matching angle.
+Draw **tiles** (short reflector lines) with the mouse. When the beam hits a tile it bounces off at the matching angle.
 Steer it, bounce by bounce, until it lands in the **goal hole** on the right wall.
 
-1. **Aim** — move and rotate the mirrors
-2. **Bounce** — the beam reflects off each mirror
+- You can draw as many tiles as you like over time, but only **3 can exist at once** — draw a 4th and the oldest disappears
+- Each tile has a **short maximum length**, so every tile has to be placed precisely
+
+1. **Aim** — draw a tile where you want the beam to turn
+2. **Bounce** — the beam reflects off each tile
 3. **Score** — land the beam in the goal hole
 
 ---
@@ -33,8 +36,13 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 ### Play screen
 - Opens from the **PLAY** button
 - Blueprint-style play area with hatched walls, the laser source on the left and the goal hole on the right
-- The laser beam (same trail-and-glow beam as the home screen) fires from the source, travels across and hits the right wall, then fires again
-- No mirrors yet, so the beam always misses the goal
+- The laser beam (same trail-and-glow beam as the home screen) fires from the source and keeps going
+- **Click + drag** inside the play area to draw a tile; the beam bounces off it
+- Only 3 tiles at a time — the 4th makes the oldest fade away (the oldest is shown a little lighter)
+- Tiles have a maximum length (120px) — a dashed preview line stops growing at the limit
+- When the beam hits a wall it sparks, rests for a moment, then fires again
+- The HUD shows `TILES: n/3` and the maximum length
+- Reaching the goal hole is not detected yet
 
 ### Controls
 
@@ -43,6 +51,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 | Click + drag a mirror's middle (home screen) | Move the mirror |
 | Click + drag a mirror's end (home screen) | Rotate / resize the mirror |
 | Click `PLAY` | Open the play screen |
+| Click + drag (play screen) | Draw a tile (max length, 3 at a time) |
 | Click `HOW TO PLAY` | Open the how-to-play screen |
 | Click `← MENU` (play screen) | Return to the home screen |
 | `ESC` | Return to the home screen |
@@ -67,6 +76,7 @@ No installation. No compilation. Just:
 | 2 | Play area, laser source, goal hole (static) | ✅ Done |
 | 3 | Home screen redesign: full-window layout, interactive beam and mirrors, how-to-play screen | ✅ Done |
 | 4 | PLAY button opens the play screen (moving beam, menu button to go back) | ✅ Done |
+| 5 | Draw tiles with click + drag (max length, 3 at a time) and the beam bounces off them | ✅ Done |
 
 ---
 
@@ -84,9 +94,9 @@ Capstone-Refract/
 | HTML5 Canvas 2D API | All rendering |
 | `requestAnimationFrame` | 60 fps game loop |
 | Window `resize` handling | Full-window canvas and layout |
-| Vector reflection math | Beam bouncing off mirrors, title and buttons |
-| Segment intersection geometry | Beam–mirror collision |
-| Pointer events | Dragging mirrors (mouse and touch) |
+| Vector reflection math | Beam bouncing off mirrors, tiles, title and buttons |
+| Segment intersection geometry | Beam–mirror and beam–tile collision |
+| Pointer events | Dragging mirrors and drawing tiles (mouse and touch) |
 | Pre-rendered offscreen canvas | Paper texture (performance) |
 | Vanilla JS state machine | `MENU` · `HOWTO` · `PLAYING` |
 

@@ -40,7 +40,7 @@ const PLAY   = { x: 0, y: 0, w: 0, h: 0 };            // outer bounds
 const INT    = { x: 0, y: 0, w: 0, h: 0 };            // interior (laser zone)
 const SOURCE = { x: 0, y: 0 };                        // left wall — laser fires rightward
 const HOLE   = { x: 0, y: 0, r: 24 };                 // right wall — goal for the laser
-const LEVEL  = { num: 1, speed: 'SLOW', mirrors: 3 };
+const LEVEL  = { num: 1, speed: 'SLOW', tiles: 3, maxLen: 120 };   // max 3 tiles at once, each at most 120px long
 
 // ── PRE-RENDERED PAPER TEXTURE ───────────────────────────────────────────────
 const offPaper = document.createElement('canvas');
@@ -99,6 +99,7 @@ function layout() {
   buildPaper();
   buildDoodles();
   layoutMenu();
+  clearTiles();
 }
 
 let resizeTimer = null;
@@ -311,8 +312,9 @@ function resetBeam() {
 }
 
 // ── PLAY SCREEN BEAM ─────────────────────────────────────────────────────────
-// Fired from the source, travels right, hits the wall, then fires again.
-const shot = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90, wait: 0, spark: 0 };
+// Fired from the source. Bounces off the player's tiles, and when it reaches a
+// wall it sparks, rests for a moment, then fires again.
+const shot = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90, wait: 0, spark: 0, sx: 0, sy: 0 };
 
 function resetShot() {
   shot.x = SOURCE.x + 10;  shot.y = SOURCE.y;
@@ -322,35 +324,122 @@ function resetShot() {
 
 function updateShot() {
   shot.spark = Math.max(0, shot.spark - 0.03);
-  if (shot.wait > 0) {                       // beam is resting after hitting the wall
+  if (shot.wait > 0) {                       // beam is resting after hitting a wall
     shot.trail.shift();                      // trail fades out
     if (--shot.wait === 0) resetShot();
     return;
   }
   shot.trail.push({ x: shot.x, y: shot.y });
   if (shot.trail.length > shot.maxTrail) shot.trail.shift();
-  shot.x += shot.dx;
-  shot.y += shot.dy;
-  const wallX = INT.x + INT.w;
-  if (shot.x >= wallX) {                     // hit the right wall
-    shot.x = wallX;
+
+  const px = shot.x, py = shot.y;
+  let nx = px + shot.dx, ny = py + shot.dy;
+
+  // Player's tiles
+  for (const t of tiles) {
+    if (t.cd > 0) { t.cd--; continue; }
+    if (segmentIntersect(px, py, nx, ny, t.x1, t.y1, t.x2, t.y2)) {
+      reflectOff(t, shot);
+      t.cd = 8;                              // stops double-bounce on the same tile
+      nx = px + shot.dx;  ny = py + shot.dy;
+    }
+  }
+
+  shot.x = nx;  shot.y = ny;
+
+  // Walls
+  const x1 = INT.x, x2 = INT.x + INT.w, y1 = INT.y, y2 = INT.y + INT.h;
+  if (shot.x <= x1 || shot.x >= x2 || shot.y <= y1 || shot.y >= y2) {
+    shot.x = Math.max(x1, Math.min(x2, shot.x));
+    shot.y = Math.max(y1, Math.min(y2, shot.y));
+    shot.sx = shot.x;  shot.sy = shot.y;
     shot.spark = 1;
     shot.wait = 90;
   }
 }
 
-/** Beam + the spark where it strikes the wall */
+/** Beam + the spark where it strikes a wall */
 function drawShot() {
   drawBeamOf(shot, shot.wait === 0);
   if (shot.spark > 0) {
-    const ex = INT.x + INT.w, ey = shot.y, r = 12 + shot.spark * 8;
-    const sg = ctx.createRadialGradient(ex, ey, 0, ex, ey, r);
+    const r = 12 + shot.spark * 8;
+    const sg = ctx.createRadialGradient(shot.sx, shot.sy, 0, shot.sx, shot.sy, r);
     sg.addColorStop(0,   `rgba(255, 180, 100, ${0.7 * shot.spark})`);
     sg.addColorStop(0.5, `rgba(220,  80,  40, ${0.4 * shot.spark})`);
     sg.addColorStop(1,    'rgba(192,  57,  43, 0)');
     ctx.fillStyle = sg;
-    ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(shot.sx, shot.sy, r, 0, Math.PI * 2); ctx.fill();
   }
+}
+
+// ── PLAYER TILES ─────────────────────────────────────────────────────────────
+// Click + drag draws a short tile. Only LEVEL.tiles can exist at once —
+// drawing one more makes the oldest fade away.
+const tiles    = [];        // placed tiles: { x1, y1, x2, y2, cd }
+const oldTiles = [];        // removed tiles still fading out: { ..., alpha }
+let   drawing  = null;      // tile being drawn: { x1, y1, x2, y2 }
+
+function clearTiles() {
+  tiles.length = 0;  oldTiles.length = 0;  drawing = null;
+}
+
+/** End point for the tile being drawn: kept inside the play area and within the length limit */
+function limitTileEnd(x1, y1, px, py) {
+  px = Math.max(INT.x + 4, Math.min(INT.x + INT.w - 4, px));
+  py = Math.max(INT.y + 4, Math.min(INT.y + INT.h - 4, py));
+  const len = Math.hypot(px - x1, py - y1);
+  if (len > LEVEL.maxLen) {
+    px = x1 + (px - x1) * LEVEL.maxLen / len;
+    py = y1 + (py - y1) * LEVEL.maxLen / len;
+  }
+  return { x: px, y: py };
+}
+
+function startTile(px, py) {
+  if (px < INT.x || px > INT.x + INT.w || py < INT.y || py > INT.y + INT.h) return;
+  drawing = { x1: px, y1: py, x2: px, y2: py };
+}
+
+function finishTile() {
+  if (!drawing) return;
+  if (Math.hypot(drawing.x2 - drawing.x1, drawing.y2 - drawing.y1) >= 12) {   // ignore tiny accidental clicks
+    tiles.push({ ...drawing, cd: 0 });
+    if (tiles.length > LEVEL.tiles) oldTiles.push({ ...tiles.shift(), alpha: 1 });
+  }
+  drawing = null;
+}
+
+function drawTileLine(t, alpha, dashed) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = C.ink;
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+  ctx.shadowColor = 'rgba(0,0,0,0.12)';
+  ctx.shadowBlur  = 4;
+  if (dashed) ctx.setLineDash([7, 6]);
+  ctx.beginPath();
+  ctx.moveTo(t.x1, t.y1);
+  ctx.lineTo(t.x2, t.y2);
+  ctx.stroke();
+  ctx.restore();
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.4;
+  ctx.fillStyle = C.ink;
+  ctx.beginPath(); ctx.arc(t.x1, t.y1, 3, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(t.x2, t.y2, 3, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawTiles() {
+  for (let i = oldTiles.length - 1; i >= 0; i--) {
+    oldTiles[i].alpha -= 0.04;
+    if (oldTiles[i].alpha <= 0) { oldTiles.splice(i, 1); continue; }
+    drawTileLine(oldTiles[i], oldTiles[i].alpha, false);
+  }
+  // The tile that will vanish next is drawn a little lighter once the set is full
+  tiles.forEach((t, i) => drawTileLine(t, (tiles.length === LEVEL.tiles && i === 0) ? 0.6 : 1, false));
+  if (drawing) drawTileLine(drawing, 0.7, true);
 }
 
 function layoutMenu() {
@@ -365,13 +454,13 @@ function layoutMenu() {
   resetShot();
 }
 
-function reflectOff(m) {
+function reflectOff(m, b = beam) {
   const nx = -(m.y2 - m.y1), ny = (m.x2 - m.x1);
   const len = Math.hypot(nx, ny);
   const unx = nx / len, uny = ny / len;
-  const dot = beam.dx * unx + beam.dy * uny;
-  beam.dx -= 2 * dot * unx;
-  beam.dy -= 2 * dot * uny;
+  const dot = b.dx * unx + b.dy * uny;
+  b.dx -= 2 * dot * unx;
+  b.dy -= 2 * dot * uny;
 }
 
 function updateBeam() {
@@ -745,8 +834,8 @@ function drawHowTo() {
   const lines = [
     ['A laser beam fires from the emitter on the left wall.',            false],
     ['You can not slow it down or stop it — you only steer it.',         false],
-    ['Mirrors (reflector lines) bounce the beam at the matching angle.', false],
-    ['Move and rotate the mirrors to change the beam’s direction.',      false],
+    ['Click and drag to draw a short tile — the beam bounces off it.',   false],
+    ['Only 3 tiles at a time: draw a 4th and the oldest disappears.',    false],
     ['Guide the beam into the GOAL hole on the right wall.',             true ],
   ];
   ctx.save();
@@ -795,6 +884,7 @@ function drawPlaying() {
   drawSource();
   drawHole();
   updateShot();
+  drawTiles();
   drawShot();
   drawHUD();
   const b = PLAY_MENU_BTN();
@@ -1034,6 +1124,14 @@ function drawHole() {
 
 /** HUD strip below the play area */
 function drawHUD() {
+  // Faint how-to hint inside the play area
+  ctx.save();
+  ctx.fillStyle = C.inkLight;
+  ctx.font      = `14px 'Patrick Hand', cursive`;
+  ctx.textAlign = 'center';
+  ctx.fillText(`click + drag to draw a tile  ·  only ${LEVEL.tiles} at a time — the oldest disappears`, INT.x + INT.w / 2, INT.y + INT.h - 14);
+  ctx.restore();
+
   const hx = PLAY.x, hy = PLAY.y + PLAY.h + 8;
   const hw = PLAY.w;
 
@@ -1051,10 +1149,10 @@ function drawHUD() {
   ctx.fillStyle = C.inkLight;
   ctx.fillText(`SPEED: ${LEVEL.speed}`, hx + hw / 2, hy);
 
-  // Right: mirrors available + ESC tip
+  // Right: tiles in use + length limit + ESC tip
   ctx.textAlign = 'right';
   ctx.fillStyle = C.inkMid;
-  ctx.fillText(`MIRRORS: ${LEVEL.mirrors}   ·   ESC = menu`, hx + hw, hy);
+  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   ESC = menu`, hx + hw, hy);
   ctx.restore();
 }
 
@@ -1175,6 +1273,11 @@ function inRect(p, r) {
 canvas.addEventListener('pointermove', e => {
   const p = toCanvas(e);
   mouse.x = p.x;  mouse.y = p.y;
+  if (state === 'PLAYING' && drawing) {
+    const e2 = limitTileEnd(drawing.x1, drawing.y1, p.x, p.y);
+    drawing.x2 = e2.x;  drawing.y2 = e2.y;
+    return;
+  }
   if (state !== 'MENU') return;
   if (drag) dragMirror(p.x, p.y);
   else { const pk = pickMirror(p.x, p.y); hoverMirror = pk ? pk.m : null; }
@@ -1183,6 +1286,11 @@ canvas.addEventListener('pointermove', e => {
 canvas.addEventListener('pointerdown', e => {
   const p = toCanvas(e);
   mouse.x = p.x;  mouse.y = p.y;
+  if (state === 'PLAYING') {
+    startTile(p.x, p.y);
+    if (drawing) canvas.setPointerCapture(e.pointerId);
+    return;
+  }
   if (state !== 'MENU') return;
   const pk = pickMirror(p.x, p.y);
   if (pk) {
@@ -1191,13 +1299,14 @@ canvas.addEventListener('pointerdown', e => {
   }
 });
 
-canvas.addEventListener('pointerup', () => { drag = null; });
+canvas.addEventListener('pointerup', () => { drag = null; finishTile(); });
+canvas.addEventListener('pointercancel', () => { drag = null; drawing = null; });
 
 canvas.addEventListener('click', e => {
   const p = toCanvas(e);
   if (state === 'MENU') {
     const R = menuRects();
-    if (inRect(p, R.play)) { resetShot(); state = 'PLAYING'; }
+    if (inRect(p, R.play)) { clearTiles(); resetShot(); state = 'PLAYING'; }
     else if (inRect(p, R.how)) state = 'HOWTO';
   } else if (state === 'HOWTO') {
     if (inRect(p, HOWTO_BACK())) state = 'MENU';
@@ -1207,7 +1316,7 @@ canvas.addEventListener('click', e => {
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && state !== 'MENU') state = 'MENU';
+  if (e.key === 'Escape' && state !== 'MENU') { drawing = null; state = 'MENU'; }
 });
 
 // ── START ─────────────────────────────────────────────────────────────────────
