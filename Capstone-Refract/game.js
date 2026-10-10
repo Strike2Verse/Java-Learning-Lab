@@ -40,24 +40,11 @@ const PLAY   = { x: 0, y: 0, w: 0, h: 0 };            // outer bounds
 const INT    = { x: 0, y: 0, w: 0, h: 0 };            // interior (laser zone)
 const SOURCE = { x: 0, y: 0 };                        // left wall — laser fires rightward
 const HOLE   = { x: 0, y: 0, r: 24 };                 // right wall — goal for the laser
-// Each level: how fast the beam is, where it starts (src) and where the goal is
-// (hole) as fractions of the play area height, and its stone walls:
-// [direction, x, y, length] with x, y, length as fractions of the interior.
-const LEVELS = [
-  { speed: 'SLOW',      v: 2.6, src: 0.56, hole: 0.26,
-    walls: [['v', 0.45, 0.38, 0.50], ['v', 0.78, 0.36, 0.26]] },
-  { speed: 'MEDIUM',    v: 3.2, src: 0.30, hole: 0.78,
-    walls: [['v', 0.40, 0.10, 0.45], ['h', 0.55, 0.62, 0.30], ['v', 0.80, 0.50, 0.30]] },
-  { speed: 'FAST',      v: 3.8, src: 0.80, hole: 0.20,
-    walls: [['v', 0.30, 0.55, 0.45], ['v', 0.60, 0.05, 0.45], ['h', 0.62, 0.52, 0.20]] },
-  { speed: 'VERY FAST', v: 4.4, src: 0.50, hole: 0.50,
-    walls: [['v', 0.28, 0.28, 0.44], ['v', 0.52, 0.05, 0.40], ['v', 0.52, 0.58, 0.37], ['v', 0.78, 0.30, 0.40]] },
-  { speed: 'INSANE',    v: 5.0, src: 0.15, hole: 0.85,
-    walls: [['v', 0.25, 0.02, 0.30], ['h', 0.30, 0.45, 0.30], ['v', 0.60, 0.50, 0.48], ['v', 0.80, 0.55, 0.40]] },
-];
-
-// The level being played. tiles / maxLen are the same on every level:
+// Levels are generated at random (see generateLevel) — only the number of levels
+// and the tile rules are fixed. tiles / maxLen are the same on every level:
 // max 3 tiles at once, each at most 120px long.
+const TOTAL_LEVELS = 8;
+let   levelSpec    = null;   // layout of the level being played (kept when the window is resized)
 const LEVEL  = { num: 1, speed: 'SLOW', v: 2.6, tiles: 3, maxLen: 120 };
 
 // ── PRE-RENDERED PAPER TEXTURE ───────────────────────────────────────────────
@@ -329,23 +316,64 @@ function resetBeam() {
   beam.trail = [];
 }
 
-// ── OBSTACLES ────────────────────────────────────────────────────────────────
-// Stone walls: solid blocks that absorb the beam (counts as a miss) and can't
-// have tiles drawn through them. Positions are fractions of the play area so
-// they fit any window size.
-const obstacles = [];       // { x, y, w, h }
+// ── OBSTACLES & LEVEL EXTRAS ─────────────────────────────────────────────────
+// Everything on the play screen besides the player's tiles:
+//   wall   — stone: absorbs the beam (a miss); tiles can't be drawn through it
+//   mover  — a blue stone bar that slides up and down: time your shot
+//   blink  — a red block that is solid for a while, then switches off
+//   portal — the beam enters one end and leaves the other, same direction
+//   star   — the beam must touch every star before the goal opens
+// Positions are fractions of the play area so they fit any window size.
+const obstacles = [];       // { kind, x, y, w, h, ... }
+const portals   = [];       // { a: {x, y}, b: {x, y}, r }
+const stars     = [];       // { x, y, got, flash }
+
+function starsLeft() { return stars.filter(s => !s.got).length; }
 
 function buildObstacles() {
   obstacles.length = 0;
-  for (const [dir, fx, fy, flen] of LEVELS[LEVEL.num - 1].walls) {
-    const x = INT.x + INT.w * fx, y = INT.y + INT.h * fy;
-    obstacles.push(dir === 'v' ? { x, y, w: 34, h: INT.h * flen }
-                               : { x, y, w: INT.w * flen, h: 34 });
+  const S = levelSpec;
+  for (const w of S.walls) {
+    obstacles.push({ kind: 'wall', x: INT.x + INT.w * w.x, y: INT.y + INT.h * w.y, w: INT.w * w.w, h: INT.h * w.h });
+  }
+  for (const b of S.bars) {
+    const h = INT.h * b.h, cy = INT.y + INT.h * b.y;
+    obstacles.push({
+      kind: b.kind, x: INT.x + INT.w * b.x, y: cy - h / 2, w: INT.w * b.w, h,
+      cy, amp: INT.h * b.amp, period: b.period, off: b.off, onLen: b.period * 0.4, solid: true,
+    });
+  }
+  updateObstacles();
+}
+
+function buildExtras() {
+  portals.length = 0;
+  stars.length   = 0;
+  for (const p of levelSpec.portals) {
+    portals.push({
+      a: { x: INT.x + INT.w * p.a.x, y: INT.y + INT.h * p.a.y },
+      b: { x: INT.x + INT.w * p.b.x, y: INT.y + INT.h * p.b.y },
+      r: 22,
+    });
+  }
+  for (const s of levelSpec.stars) {
+    stars.push({ x: INT.x + INT.w * s.x, y: INT.y + INT.h * s.y, got: false, flash: 0 });
+  }
+}
+
+/** Moves the sliding bars and switches the blinking blocks (called once per frame) */
+function updateObstacles() {
+  for (const o of obstacles) {
+    if (o.kind === 'mover') {
+      o.y = o.cy + o.amp * Math.sin((frame + o.off) * 2 * Math.PI / o.period) - o.h / 2;
+    } else if (o.kind === 'blink') {
+      o.solid = (frame + o.off) % o.period < o.onLen;
+    }
   }
 }
 
 function inObstacle(px, py, pad = 0) {
-  return obstacles.some(o => px > o.x - pad && px < o.x + o.w + pad && py > o.y - pad && py < o.y + o.h + pad);
+  return obstacles.some(o => o.solid !== false && px > o.x - pad && px < o.x + o.w + pad && py > o.y - pad && py < o.y + o.h + pad);
 }
 
 /** Does the line from (x1,y1) to (x2,y2) pass through any obstacle? */
@@ -358,32 +386,322 @@ function segmentHitsObstacle(x1, y1, x2, y2) {
   return false;
 }
 
+// ── LEVEL GENERATOR ──────────────────────────────────────────────────────────
+// Every level is random but always winnable: a hidden solution path is planned
+// first (beam → tile → tile → goal, with an optional portal jump), then the
+// extras are scattered around it without ever blocking it. All numbers are
+// fractions (0–1) of the play area interior.
+const rnd  = (a, b) => a + Math.random() * (b - a);
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+
+function rectOf(x1, y1, x2, y2) {
+  return { x1: Math.min(x1, x2), y1: Math.min(y1, y2), x2: Math.max(x1, x2), y2: Math.max(y1, y2) };
+}
+
+/** Do the rectangles overlap, once a (mx, my) clearance is added around b? */
+function rectsClash(a, b, mx, my) {
+  return a.x1 < b.x2 + mx && a.x2 > b.x1 - mx && a.y1 < b.y2 + my && a.y2 > b.y1 - my;
+}
+
+function speedName(v) {
+  return v < 3 ? 'SLOW' : v < 3.6 ? 'MEDIUM' : v < 4.2 ? 'FAST' : v < 4.8 ? 'VERY FAST' : 'INSANE';
+}
+
+/** What each level adds: 1 walls only · 2 stars · 3 portals · 4 blinking blocks · 5 sliding bars · 7 a second blinking block */
+function generateLevel(n) {
+  const mx = 40 / INT.w, my = 40 / INT.h;      // ~40px clearance around the path
+  const tw = 34 / INT.w, th = 34 / INT.h;      // stone thickness as a fraction
+  const hb = 0.22;                             // height of sliding / blinking bars
+  const v  = 2.6 + 0.35 * (n - 1);
+  const spec = { v, speed: speedName(v), src: 0, hole: 0, walls: [], bars: [], stars: [], portals: [] };
+
+  // 1. The hidden solution: straight shot, turn at x = a, turn again into the goal.
+  //    With a portal the first leg ends in portal A and the beam resumes from portal B.
+  const ys = rnd(0.15, 0.85);
+  let yh;  do { yh = rnd(0.12, 0.88); } while (Math.abs(yh - ys) < 0.3);
+  const a  = rnd(0.45, 0.75);
+  const usePortal = n >= 3;
+  let ys2 = ys, pa = 0, pb = 0;
+  if (usePortal) {
+    pa = rnd(0.14, a - 0.2);
+    pb = rnd(0.14, a - 0.2);
+    let found = false;
+    for (let i = 0; i < 200 && !found; i++) {
+      ys2 = rnd(0.12, 0.88);
+      found = Math.abs(ys2 - ys) >= 0.2 && Math.abs(ys2 - yh) >= 0.25;
+    }
+    if (!found) return generateLevel(n);                  // this start/goal pair leaves no room for a portal exit — draw again
+    spec.portals.push({ a: { x: pa, y: ys }, b: { x: pb, y: ys2 } });
+  }
+  spec.src  = ys;
+  spec.hole = yh;
+  spec.turn = { x: a, y1: ys2, y2: yh };      // where the planned solution turns (tiles go here)
+
+  const pieces = [{ r: rectOf(0, ys, usePortal ? pa : a, ys), horiz: true }];
+  if (usePortal) pieces.push({ r: rectOf(pb, ys2, a, ys2), horiz: true });
+  pieces.push({ r: rectOf(a, ys2, a, yh), horiz: false });
+  pieces.push({ r: rectOf(a, yh, 1, yh),  horiz: true });
+
+  const reserved = pieces.map(p => p.r);                 // path first, then everything placed later
+  const extras0  = reserved.length;
+  for (const p of spec.portals) {
+    for (const e of [p.a, p.b]) reserved.push(rectOf(e.x - 30 / INT.w, e.y - 30 / INT.h, e.x + 30 / INT.w, e.y + 30 / INT.h));
+  }
+
+  // 2. Blinking blocks and sliding bars sit ON the path — the player has to time the beam.
+  const kinds = [];
+  if (n >= 4) for (let i = 0; i < (n >= 7 ? 2 : 1); i++) kinds.push('blink');
+  if (n >= 5) kinds.push('mover');
+  for (const kind of kinds) {
+    for (let tries = 0; tries < 40; tries++) {
+      const pc = pick(pieces.filter(p => p.horiz));
+      const lo = Math.max(pc.r.x1 + 0.10, 0.12), hi = Math.min(pc.r.x2 - 0.10, 0.92 - tw);
+      if (hi <= lo) continue;
+      const x = rnd(lo, hi), y = pc.r.y1;
+      let amp = 0, swath = rectOf(x, y - hb / 2, x + tw, y + hb / 2);
+      if (kind === 'mover') {
+        amp = Math.min(0.30, y - 0.02 - hb / 2, 0.98 - hb / 2 - y);
+        if (amp < 0.19) continue;                         // not enough room to swing clear of the path
+        swath = rectOf(x, y - amp - hb / 2, x + tw, y + amp + hb / 2);
+      }
+      // It may cross the leg it sits on, but must not touch any other part of the path or another extra.
+      if (!pieces.every(p => p === pc || !rectsClash(swath, p.r, mx * 0.5, my * 0.5))) continue;
+      if (reserved.slice(extras0).some(q => rectsClash(swath, q, mx * 0.5, my * 0.5))) continue;
+      spec.bars.push({ kind, x, y, w: tw, h: hb, amp, period: Math.round(rnd(160, 230)), off: Math.floor(rnd(0, 230)) });
+      reserved.push(swath);
+      break;
+    }
+  }
+
+  // 3. Stars along the path after the first leg (the first leg is free, so a star there is no puzzle).
+  const nStars = n >= 2 ? Math.min(3, 1 + Math.floor((n - 2) / 2)) : 0;
+  const starPieces = pieces.slice(1);
+  for (let i = 0; i < nStars; i++) {
+    for (let tries = 0; tries < 40; tries++) {
+      const pc = pick(starPieces), t = rnd(0.2, 0.8);
+      const x = pc.r.x1 + (pc.r.x2 - pc.r.x1) * t, y = pc.r.y1 + (pc.r.y2 - pc.r.y1) * t;
+      const sr = rectOf(x, y, x, y);
+      if (reserved.slice(extras0).some(q => rectsClash(sr, q, mx * 0.6, my * 0.6))) continue;
+      spec.stars.push({ x, y });
+      reserved.push(sr);
+      break;
+    }
+  }
+
+  // 4. Decoy stone walls anywhere that is clear.
+  const nWalls = 2 + Math.floor(n / 2);
+  for (let i = 0; i < nWalls; i++) {
+    for (let tries = 0; tries < 60; tries++) {
+      let w, h, x, y;
+      if (Math.random() < 0.6) { w = tw; h = rnd(0.15, 0.35); x = rnd(0.14, 0.92 - w); y = rnd(0.03, 0.97 - h); }
+      else                     { w = rnd(0.10, 0.25); h = th; x = rnd(0.14, 0.92 - w); y = rnd(0.05, 0.95 - h); }
+      const r = rectOf(x, y, x + w, y + h);
+      if (reserved.some(q => rectsClash(r, q, mx, my))) continue;
+      spec.walls.push({ x, y, w, h });
+      reserved.push(r);
+      break;
+    }
+  }
+  return spec;
+}
+
+// ── DRAWING THE EXTRAS ───────────────────────────────────────────────────────
+function dashedBox(o, col, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = col;
+  ctx.lineWidth   = 2;
+  ctx.setLineDash([6, 5]);
+  ctx.strokeRect(o.x, o.y, o.w, o.h);
+  ctx.restore();
+}
+
 function drawObstacles() {
   for (const o of obstacles) {
-    ctx.save();
-    ctx.fillStyle = 'rgba(110, 120, 140, 0.22)';
-    ctx.fillRect(o.x, o.y, o.w, o.h);
-    ctx.restore();
-    hatchStrip(o.x, o.y, o.w, o.h);
-    sketchRect(o.x, o.y, o.w, o.h, 2.2, 'rgba(30, 30, 30, 0.7)');
+    if (o.kind === 'wall') {
+      ctx.save();
+      ctx.fillStyle = 'rgba(110, 120, 140, 0.22)';
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.restore();
+      hatchStrip(o.x, o.y, o.w, o.h);
+      sketchRect(o.x, o.y, o.w, o.h, 2.2, 'rgba(30, 30, 30, 0.7)');
+    } else if (o.kind === 'mover') {
+      // dotted track so the player can see where it slides
+      ctx.save();
+      ctx.strokeStyle = 'rgba(55, 95, 155, 0.30)';
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([3, 6]);
+      ctx.beginPath();
+      ctx.moveTo(o.x + o.w / 2, o.cy - o.amp - o.h / 2);
+      ctx.lineTo(o.x + o.w / 2, o.cy + o.amp + o.h / 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(70, 110, 170, 0.25)';
+      ctx.setLineDash([]);
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+      ctx.restore();
+      hatchStrip(o.x, o.y, o.w, o.h);
+      sketchRect(o.x, o.y, o.w, o.h, 2.2, 'rgba(55, 95, 155, 0.9)');
+      // up / down arrows
+      const cx = o.x + o.w / 2, cy = o.y + o.h / 2;
+      ctx.save();
+      ctx.strokeStyle = 'rgba(55, 95, 155, 0.9)';
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(cx - 5, cy - 6); ctx.lineTo(cx, cy - 12); ctx.lineTo(cx + 5, cy - 6);
+      ctx.moveTo(cx - 5, cy + 6); ctx.lineTo(cx, cy + 12); ctx.lineTo(cx + 5, cy + 6);
+      ctx.stroke();
+      ctx.restore();
+    } else {                                   // blink
+      if (o.solid) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(192, 57, 43, 0.20)';
+        ctx.fillRect(o.x, o.y, o.w, o.h);
+        ctx.restore();
+        hatchStrip(o.x, o.y, o.w, o.h);
+        sketchRect(o.x, o.y, o.w, o.h, 2.2, 'rgba(192, 57, 43, 0.9)');
+      } else {
+        const left = o.period - (frame + o.off) % o.period;            // frames until it turns solid again
+        const warn = left < 40 ? (Math.floor(left / 5) % 2 ? 0.9 : 0.25) : 0.35;
+        dashedBox(o, C.accent, warn);
+      }
+    }
   }
+}
+
+function drawPortals() {
+  for (const p of portals) {
+    for (const e of [p.a, p.b]) {
+      ctx.save();
+      const gr = ctx.createRadialGradient(e.x, e.y, 2, e.x, e.y, p.r + 6);
+      gr.addColorStop(0, 'rgba(70, 110, 190, 0.35)');
+      gr.addColorStop(1, 'rgba(70, 110, 190, 0)');
+      ctx.fillStyle = gr;
+      ctx.beginPath(); ctx.arc(e.x, e.y, p.r + 6, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = 'rgba(55, 95, 155, 0.9)';
+      ctx.lineWidth   = 2;
+      ctx.setLineDash([6, 5]);
+      ctx.lineDashOffset = -frame * 0.7;
+      ctx.beginPath(); ctx.arc(e.x, e.y, p.r, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineDashOffset = frame * 0.9;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(e.x, e.y, p.r * 0.55, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = 'rgba(55, 95, 155, 0.85)';
+      ctx.font = `13px 'Patrick Hand', cursive`;
+      ctx.textAlign = 'center';
+      ctx.fillText('portal', e.x, e.y + p.r + 17);
+      ctx.restore();
+    }
+  }
+}
+
+function starPath(x, y, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 10; i++) {
+    const rad = i % 2 === 0 ? r : r * 0.45, ang = -Math.PI / 2 + i * Math.PI / 5;
+    ctx.lineTo(x + Math.cos(ang) * rad, y + Math.sin(ang) * rad);
+  }
+  ctx.closePath();
+}
+
+function drawStars() {
+  for (const s of stars) {
+    if (s.flash > 0) s.flash = Math.max(0, s.flash - 0.04);
+    ctx.save();
+    if (s.got) {
+      ctx.globalAlpha = 0.28;
+      ctx.strokeStyle = C.ink;
+      ctx.lineWidth = 1.2;
+      starPath(s.x, s.y, 11);
+      ctx.stroke();
+      if (s.flash > 0) {                       // little burst when collected
+        ctx.globalAlpha = s.flash;
+        ctx.strokeStyle = 'rgba(235, 185, 60, 1)';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(s.x, s.y, 12 + (1 - s.flash) * 26, 0, Math.PI * 2); ctx.stroke();
+      }
+    } else {
+      const r = 13 + Math.sin(frame * 0.1 + s.x) * 1.5;
+      ctx.fillStyle   = 'rgba(235, 185, 60, 0.95)';
+      ctx.strokeStyle = C.ink;
+      ctx.lineWidth   = 1.8;
+      ctx.lineJoin    = 'round';
+      starPath(s.x, s.y, r);
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+/** Dashed ring around the goal while stars are still missing */
+function drawGoalLock() {
+  const left = starsLeft();
+  if (left === 0) return;
+  ctx.save();
+  ctx.strokeStyle = 'rgba(30, 30, 30, 0.55)';
+  ctx.lineWidth   = 2;
+  ctx.setLineDash([4, 5]);
+  ctx.beginPath(); ctx.arc(HOLE.x, HOLE.y, HOLE.r + 12, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = C.inkMid;
+  ctx.font = `15px 'Patrick Hand', cursive`;
+  ctx.textAlign = 'right';
+  ctx.fillText(`★ ${left} to go`, HOLE.x - HOLE.r - 20, HOLE.y + 5);
+  ctx.restore();
+}
+
+/** Short message at the top of the play area (e.g. "Collect all the stars first!") */
+function drawPlayMessage() {
+  if (play.msgT <= 0) return;
+  play.msgT--;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, play.msgT / 30);
+  ctx.fillStyle = C.accent;
+  ctx.font = `bold 28px 'Caveat', cursive`;
+  ctx.textAlign = 'center';
+  ctx.fillText(play.msg, INT.x + INT.w / 2, INT.y + 34);
+  ctx.restore();
 }
 
 // ── PLAY SCREEN BEAM ─────────────────────────────────────────────────────────
 // Fired from the source. Bounces off the player's tiles, and when it reaches a
 // wall it sparks, rests for a moment, then fires again.
-const shot = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90, wait: 0, spark: 0, sx: 0, sy: 0 };
+const shot = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90, wait: 0, spark: 0, sx: 0, sy: 0, pcd: 0 };
 
 function resetShot() {
   shot.x = SOURCE.x + 10;  shot.y = SOURCE.y;
   shot.dx = LEVEL.v;       shot.dy = 0;
-  shot.trail = [];  shot.wait = 0;
+  shot.trail = [];  shot.wait = 0;  shot.pcd = 0;
+}
+
+/** The beam ends here: spark, short rest, then it fires again */
+function beamMiss() {
+  shot.sx = shot.x;  shot.sy = shot.y;
+  shot.spark = 1;
+  // random rest, so sliding / blinking blocks can't lock-step with the beam (longer random range when the level has any)
+  shot.wait  = levelSpec.bars.length ? 60 + Math.floor(Math.random() * 200) : 90 + Math.floor(Math.random() * 50);
+  play.misses++;
+}
+
+/** If the beam is inside a portal, move it to the other end (same direction) */
+function portalJump() {
+  for (const p of portals) {
+    for (const [from, to] of [[p.a, p.b], [p.b, p.a]]) {
+      if (Math.hypot(shot.x - from.x, shot.y - from.y) < p.r) {
+        shot.x = to.x;  shot.y = to.y;
+        shot.trail = [];                                  // no line across the screen
+        shot.pcd = Math.ceil(2 * p.r / LEVEL.v) + 4;      // ignore portals until it has left this one
+        return;
+      }
+    }
+  }
 }
 
 function updateShot() {
   if (play.won) return;                      // level is solved — beam stays in the hole
   shot.spark = Math.max(0, shot.spark - 0.03);
-  if (shot.wait > 0) {                       // beam is resting after hitting a wall
+  if (shot.wait > 0) {                       // beam is resting after a miss
     shot.trail.shift();                      // trail fades out
     if (--shot.wait === 0) resetShot();
     return;
@@ -406,8 +724,22 @@ function updateShot() {
 
   shot.x = nx;  shot.y = ny;
 
-  // Goal hole
+  // Portals
+  if (shot.pcd > 0) shot.pcd--; else portalJump();
+
+  // Stars
+  for (const st of stars) {
+    if (!st.got && Math.hypot(shot.x - st.x, shot.y - st.y) < 18) { st.got = true; st.flash = 1; }
+  }
+
+  // Goal hole (only opens once every star is collected)
   if (Math.hypot(shot.x - HOLE.x, shot.y - HOLE.y) < HOLE.r) {
+    if (starsLeft() > 0) {
+      play.msg = 'Collect all the stars first!';
+      play.msgT = 150;
+      beamMiss();
+      return;
+    }
     shot.x = HOLE.x;  shot.y = HOLE.y;
     shot.sx = shot.x;  shot.sy = shot.y;
     shot.spark = 1;
@@ -416,24 +748,15 @@ function updateShot() {
     return;
   }
 
-  // Stone walls absorb the beam
-  if (inObstacle(shot.x, shot.y)) {
-    shot.sx = shot.x;  shot.sy = shot.y;
-    shot.spark = 1;
-    shot.wait = 90;
-    play.misses++;
-    return;
-  }
+  // Stone, sliding bars and solid blinking blocks absorb the beam
+  if (inObstacle(shot.x, shot.y)) { beamMiss(); return; }
 
   // Walls
   const x1 = INT.x, x2 = INT.x + INT.w, y1 = INT.y, y2 = INT.y + INT.h;
   if (shot.x <= x1 || shot.x >= x2 || shot.y <= y1 || shot.y >= y2) {
     shot.x = Math.max(x1, Math.min(x2, shot.x));
     shot.y = Math.max(y1, Math.min(y2, shot.y));
-    shot.sx = shot.x;  shot.sy = shot.y;
-    shot.spark = 1;
-    shot.wait = 90;
-    play.misses++;
+    beamMiss();
   }
 }
 
@@ -466,7 +789,7 @@ function clearTiles() {
 // ── WIN STATE ────────────────────────────────────────────────────────────────
 // The level is won when the beam reaches the goal hole. A beam that hits any
 // other part of a wall is a miss and simply fires again.
-const play = { won: false, misses: 0, total: 0 };   // total = misses over all finished levels
+const play = { won: false, misses: 0, total: 0, msg: '', msgT: 0 };   // total = misses over all finished levels
 
 /** Fresh attempt: no tiles, beam back at the source, counters cleared */
 function resetPlay() {
@@ -474,27 +797,31 @@ function resetPlay() {
   resetShot();
   play.won    = false;
   play.misses = 0;
+  play.msgT   = 0;
 }
 
-/** Set up the current level: speed, source/goal height, stone walls, fresh attempt */
+/** Set up the current level from its (random) layout: speed, source/goal height, obstacles, extras */
 function applyLevel() {
-  const L = LEVELS[LEVEL.num - 1];
-  LEVEL.speed = L.speed;
-  LEVEL.v     = L.v;
-  SOURCE.y = PLAY.y + PLAY.h * L.src;
-  HOLE.y   = PLAY.y + PLAY.h * L.hole;
+  if (!levelSpec) levelSpec = generateLevel(LEVEL.num);
+  LEVEL.speed = levelSpec.speed;
+  LEVEL.v     = levelSpec.v;
+  SOURCE.y = INT.y + INT.h * levelSpec.src;
+  HOLE.y   = INT.y + INT.h * levelSpec.hole;
   buildObstacles();
+  buildExtras();
   resetPlay();
 }
 
 function startGame() {
   LEVEL.num  = 1;
   play.total = 0;
+  levelSpec  = generateLevel(1);
   applyLevel();
 }
 
 function nextLevel() {
   LEVEL.num++;
+  levelSpec = generateLevel(LEVEL.num);
   applyLevel();
 }
 
@@ -932,7 +1259,7 @@ function drawMenu() {
 }
 
 // ── HOW TO PLAY ──────────────────────────────────────────────────────────────
-const HOWTO_PANEL_H = 490;
+const HOWTO_PANEL_H = 520;
 const HOWTO_BACK = () => ({ x: W/2 - 90, y: Math.max(40, H/2 - HOWTO_PANEL_H/2 - 20) + HOWTO_PANEL_H + 20, w: 180, h: 46 });
 
 function drawHowTo() {
@@ -957,12 +1284,14 @@ function drawHowTo() {
     ['You can not slow it down or stop it — you only steer it.',         false],
     ['Click and drag to draw a short tile — the beam bounces off it.',   false],
     ['Only 3 tiles at a time: draw a 4th and the oldest disappears.',    false],
-    ['Hatched stone walls absorb the beam — steer around them.',         false],
+    ['Stone walls, sliding bars and blinking blocks absorb the beam.',   false],
+    ['Portals: the beam goes in one and comes out the other.',           false],
+    ['Collect every star (★) to unlock the goal.',                        false],
     ['Guide the beam into the GOAL hole on the right wall.',             true ],
   ];
   ctx.save();
   lines.forEach(([text, strong], i) => {
-    const y = py + 140 + i * 52;
+    const y = py + 135 + i * 44;
     ctx.fillStyle = C.accent;
     ctx.beginPath(); ctx.arc(px + 44, y - 7, 13, 0, Math.PI*2); ctx.fill();
     ctx.fillStyle = '#fff';
@@ -1005,11 +1334,16 @@ function drawPlaying() {
   drawPlayArea();
   drawSource();
   drawHole();
+  drawGoalLock();
+  drawPortals();
+  drawStars();
   drawObstacles();
+  if (!play.won) updateObstacles();
   updateShot();
   drawTiles();
   drawShot();
   drawHUD();
+  drawPlayMessage();
   const b = PLAY_MENU_BTN();
   drawBtn(b.x, b.y, b.w, b.h, '←  MENU', C.inkMid);
   if (play.won) drawWin();
@@ -1038,7 +1372,7 @@ function drawWin() {
   ctx.textAlign = 'center';
   ctx.fillStyle = C.accent;
   ctx.font = `bold 72px 'Caveat', cursive`;
-  ctx.fillText(LEVEL.num === LEVELS.length ? 'ALL CLEAR!' : 'GOAL!', W/2, py + 82);
+  ctx.fillText(LEVEL.num === TOTAL_LEVELS ? 'ALL CLEAR!' : 'GOAL!', W/2, py + 82);
   ctx.restore();
   wavyLine(W/2 - 110, W/2 + 110, py + 96, 3, C.accent);
 
@@ -1047,15 +1381,15 @@ function drawWin() {
   ctx.fillStyle = C.inkMid;
   ctx.font = `22px 'Patrick Hand', cursive`;
   const m = play.misses;
-  if (LEVEL.num === LEVELS.length) {
-    ctx.fillText(`All ${LEVELS.length} levels cleared · ${play.total} miss${play.total === 1 ? '' : 'es'} in total`, W/2, py + 135);
+  if (LEVEL.num === TOTAL_LEVELS) {
+    ctx.fillText(`All ${TOTAL_LEVELS} levels cleared · ${play.total} miss${play.total === 1 ? '' : 'es'} in total`, W/2, py + 135);
   } else {
     ctx.fillText(m === 0 ? `Level ${LEVEL.num} — perfect, first shot!` : `Level ${LEVEL.num} — solved after ${m} miss${m === 1 ? '' : 'es'}`, W/2, py + 135);
   }
   ctx.restore();
 
   const B = WIN_BTNS();
-  drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, LEVEL.num === LEVELS.length ? '↻   PLAY AGAIN' : 'NEXT LEVEL   →', C.accent);
+  drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, LEVEL.num === TOTAL_LEVELS ? '↻   PLAY AGAIN' : 'NEXT LEVEL   →', C.accent);
   drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '←   MENU',       C.inkMid);
 }
 
@@ -1310,7 +1644,8 @@ function drawHUD() {
 
   // Left: level
   ctx.textAlign = 'left';
-  ctx.fillText(`LEVEL  ${LEVEL.num}/${LEVELS.length}   ·   MISSES: ${play.misses}`, hx, hy);
+  ctx.fillText(`LEVEL  ${LEVEL.num}/${TOTAL_LEVELS}   ·   MISSES: ${play.misses}` +
+    (stars.length ? `   ·   STARS: ${stars.length - starsLeft()}/${stars.length}` : ''), hx, hy);
 
   // Centre: speed
   ctx.textAlign = 'center';
@@ -1485,7 +1820,7 @@ canvas.addEventListener('click', e => {
   } else if (state === 'PLAYING') {
     if (play.won) {
       const B = WIN_BTNS();
-      if (inRect(p, B.again)) { if (LEVEL.num === LEVELS.length) startGame(); else nextLevel(); }
+      if (inRect(p, B.again)) { if (LEVEL.num === TOTAL_LEVELS) startGame(); else nextLevel(); }
       else if (inRect(p, B.menu)) state = 'MENU';
     } else if (inRect(p, PLAY_MENU_BTN())) {
       state = 'MENU';

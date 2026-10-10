@@ -40,12 +40,17 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - **Click + drag** inside the play area to draw a tile; the beam bounces off it
 - Only 3 tiles at a time — the 4th makes the oldest fade away (the oldest is shown a little lighter)
 - Tiles have a maximum length (120px) — a dashed preview line stops growing at the limit
-- **Stone walls** (hatched blocks) absorb the beam — that counts as a miss. Tiles can't be drawn through them (the preview turns red)
+- **Stone walls** (grey hatched blocks) absorb the beam — that counts as a miss. Tiles can't be drawn through them (the preview turns red)
 - When the beam hits a wall it sparks, rests for a moment, then fires again
 - The HUD shows `TILES: n/3` and the maximum length
-- **5 levels:** each has its own beam speed (SLOW → MEDIUM → FAST → VERY FAST → INSANE), source and goal height, and stone wall layout; the HUD shows `LEVEL n/5` and the speed
+- **8 random levels:** every level is generated fresh each time you play, and is always winnable (a hidden solution is planned first, then extras are placed around it). The beam gets faster each level (SLOW → MEDIUM → FAST → VERY FAST → INSANE); the HUD shows `LEVEL n/8` and the speed
+- **Stars (★):** from level 2, the beam must touch every star before the goal opens. A dashed ring around the goal shows how many are left; reaching it early counts as a miss
+- **Portals:** from level 3, the beam enters one portal and leaves the other in the same direction
+- **Blinking blocks:** from level 4, red blocks that are solid for a moment, then switch off (a dashed outline flashes just before they turn solid)
+- **Sliding bars:** from level 5, blue stone bars that slide up and down along a dotted track — time your shot
+- Level 7 adds a second blinking block; the beam rests for a random time after a miss so timing can't get stuck
 - **Win:** when the beam reaches the goal hole, a **GOAL!** screen shows how many misses it took, with **NEXT LEVEL** and **MENU** buttons
-- After level 5 an **ALL CLEAR!** screen shows your total misses, with **PLAY AGAIN** (back to level 1) and **MENU**
+- After level 8 an **ALL CLEAR!** screen shows your total misses, with **PLAY AGAIN** (back to level 1) and **MENU**
 - Hitting any other part of a wall counts as a miss; the HUD shows `MISSES: n`
 
 ### Controls
@@ -84,7 +89,8 @@ No installation. No compilation. Just:
 | 5 | Draw tiles with click + drag (max length, 3 at a time) and the beam bounces off them | ✅ Done |
 | 6 | Win condition: beam in the goal hole shows a GOAL! screen; misses are counted | ✅ Done |
 | 7 | Stone wall obstacles that absorb the beam and block tiles | ✅ Done |
-| 8 | 5 designed levels with a faster beam each level, NEXT LEVEL and ALL CLEAR screens | ✅ Done |
+| 8 | 5 levels with a faster beam each level, NEXT LEVEL and ALL CLEAR screens | ✅ Done |
+| 9 | Random, always-winnable levels (8) with stars, portals, blinking blocks and sliding bars | ✅ Done |
 
 ---
 
