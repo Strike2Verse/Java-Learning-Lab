@@ -22,10 +22,10 @@ You control a data packet navigating a decaying circuit grid. Reach the Exit nod
 
 > **Laser-steering puzzle** built in HTML5 Canvas + JavaScript
 
-A laser fires from the left wall and keeps moving — you can't stop it, you can only steer it. Move mirrors to bounce the beam and guide it into the goal hole on the right wall.
+A laser fires from the left wall and keeps moving — you can't stop it, you can only steer it. Draw short tiles to bounce the beam — only 3 at a time, so every tile counts — and guide it into the goal hole on the right wall.
 
 **Tech:** HTML5 Canvas · Vanilla JavaScript · Vector Physics · Real-time Rendering
 
-**Status:** 🟡 In Progress — Phase 4 complete (interactive home screen, play screen with moving beam)
+**Status:** 🟡 In Progress — Phase 5 complete (play screen: draw tiles, beam bounces off them)
 
 📁 [`Capstone-Refract/`](Capstone-Refract/) — [Full details →](Capstone-Refract/README.md)
