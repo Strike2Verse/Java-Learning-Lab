@@ -1,14 +1,15 @@
 'use strict';
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  REFRACT — game.js   Phase 1: Title Screen & Paper Theme
+//  REFRACT — game.js   Home screen + play area
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── CANVAS ─────────────────────────────────────────────────────────────────
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 
-const W = 1200, H = 750;
+// Canvas fills the whole browser window; W/H are updated on resize.
+let W = window.innerWidth, H = window.innerHeight;
 canvas.width  = W;
 canvas.height = H;
 
@@ -33,37 +34,22 @@ let frame   = 0;
 let mouse   = { x: 0, y: 0 };
 
 // ── PLAY AREA ─────────────────────────────────────────────────────────────────
-const PLAY  = { x: 60,  y: 48,  w: 1080, h: 654 };  // outer bounds
+// Filled in by layout() so the play area always fits the window.
 const WALL_T = 30;                                    // hatched wall thickness
-const INT   = {                                       // interior (laser zone)
-  x: PLAY.x + WALL_T,
-  y: PLAY.y + WALL_T,
-  w: PLAY.w - WALL_T * 2,
-  h: PLAY.h - WALL_T * 2,
-};
-
-// ── LEVEL DATA ────────────────────────────────────────────────────────────────
-// SOURCE: left wall — laser fires rightward
-const SOURCE = {
-  x: INT.x,
-  y: PLAY.y + PLAY.h * 0.56,   // slightly below centre
-};
-// HOLE: right wall — goal the laser must enter
-const HOLE = {
-  x: INT.x + INT.w,
-  y: PLAY.y + PLAY.h * 0.26,   // upper area — laser misses unless reflected
-  r: 24,                        // hole radius
-};
-const LEVEL = { num: 1, speed: 'SLOW', lines: 3 };
+const PLAY   = { x: 0, y: 0, w: 0, h: 0 };            // outer bounds
+const INT    = { x: 0, y: 0, w: 0, h: 0 };            // interior (laser zone)
+const SOURCE = { x: 0, y: 0 };                        // left wall — laser fires rightward
+const HOLE   = { x: 0, y: 0, r: 24 };                 // right wall — goal for the laser
+const LEVEL  = { num: 1, speed: 'SLOW', lines: 3 };
 
 // ── PRE-RENDERED PAPER TEXTURE ───────────────────────────────────────────────
 const offPaper = document.createElement('canvas');
-offPaper.width  = W;
-offPaper.height = H;
-(function buildPaper() {
+function buildPaper() {
+  offPaper.width  = W;
+  offPaper.height = H;
   const pc  = offPaper.getContext('2d');
   // Radial vignette (slightly darker edges for realism)
-  const vgr = pc.createRadialGradient(W/2, H/2, H*0.25, W/2, H/2, H*0.85);
+  const vgr = pc.createRadialGradient(W/2, H/2, H*0.25, W/2, H/2, Math.max(W, H)*0.75);
   vgr.addColorStop(0, C.paper);
   vgr.addColorStop(1, C.paperEdge);
   pc.fillStyle = vgr;
@@ -78,19 +64,20 @@ offPaper.height = H;
     dat[i+2] = Math.min(255, Math.max(0, dat[i+2] + n * 0.80));
   }
   pc.putImageData(id, 0, 0);
-})();
+}
 
 // ── PRE-COMPUTED PENCIL DOODLE POSITIONS (background decoration) ─────────────
-const DOODLES = (function() {
+let DOODLES = [];
+function buildDoodles() {
   const rng = (min, max) => min + Math.random() * (max - min);
-  const items = [];
+  DOODLES = [];
   const zones = [
-    [0, 0, 260, 340], [W-260, 0, W, 340],    // top corners
-    [0, 400, 220, H],  [W-220, 400, W, H],   // bottom corners
+    [0, 0, W*0.22, H*0.45], [W*0.78, 0, W, H*0.45],    // top corners
+    [0, H*0.55, W*0.2, H],  [W*0.8, H*0.55, W, H],     // bottom corners
   ];
   for (const [x1,y1,x2,y2] of zones) {
     for (let i = 0; i < 4; i++) {
-      items.push({
+      DOODLES.push({
         x:    rng(x1+20, x2-20),
         y:    rng(y1+20, y2-20),
         rot:  rng(-0.8, 0.8),
@@ -99,53 +86,28 @@ const DOODLES = (function() {
       });
     }
   }
-  return items;
-})();
-
-// ── DEMO LASER (bouncing on title screen) ────────────────────────────────────
-const demo = {
-  x: 160, y: 500,
-  dx: 2.8, dy: -1.6,
-  trail: [],
-  maxTrail: 90,
-  // reflector lines shown on title for demo
-  lines: [
-    { x1: 440, y1: 580, x2: 540, y2: 480 },   // '\' style
-    { x1: 700, y1: 460, x2: 800, y2: 560 },   // '/' style
-  ],
-};
-
-const DEMO_AREA = { x1: 60, y1: 430, x2: W - 60, y2: H - 30 };
-
-function updateDemo() {
-  demo.trail.push({ x: demo.x, y: demo.y });
-  if (demo.trail.length > demo.maxTrail) demo.trail.shift();
-
-  // Check reflection against demo lines
-  for (const ln of demo.lines) {
-    if (segmentIntersect(
-          demo.x, demo.y,
-          demo.x + demo.dx * 8, demo.y + demo.dy * 8,
-          ln.x1, ln.y1, ln.x2, ln.y2)) {
-      const nx = -(ln.y2 - ln.y1), ny = (ln.x2 - ln.x1);
-      const len = Math.hypot(nx, ny);
-      const nnx = nx / len, nny = ny / len;
-      const dot = demo.dx * nnx + demo.dy * nny;
-      demo.dx -= 2 * dot * nnx;
-      demo.dy -= 2 * dot * nny;
-      break;
-    }
-  }
-
-  demo.x += demo.dx;
-  demo.y += demo.dy;
-
-  // Bounce off demo area walls
-  if (demo.x < DEMO_AREA.x1 || demo.x > DEMO_AREA.x2) demo.dx *= -1;
-  if (demo.y < DEMO_AREA.y1 || demo.y > DEMO_AREA.y2) demo.dy *= -1;
-  demo.x = Math.max(DEMO_AREA.x1, Math.min(DEMO_AREA.x2, demo.x));
-  demo.y = Math.max(DEMO_AREA.y1, Math.min(DEMO_AREA.y2, demo.y));
 }
+
+// ── LAYOUT (runs at start and on every window resize) ────────────────────────
+function layout() {
+  PLAY.x = 60;  PLAY.y = 48;
+  PLAY.w = W - 120;  PLAY.h = H - 96;
+  INT.x = PLAY.x + WALL_T;        INT.y = PLAY.y + WALL_T;
+  INT.w = PLAY.w - WALL_T * 2;    INT.h = PLAY.h - WALL_T * 2;
+  SOURCE.x = INT.x;               SOURCE.y = PLAY.y + PLAY.h * 0.56;   // slightly below centre
+  HOLE.x   = INT.x + INT.w;       HOLE.y   = PLAY.y + PLAY.h * 0.26;   // upper area — laser misses unless reflected
+  buildPaper();
+  buildDoodles();
+  layoutMenu();
+}
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  W = canvas.width  = window.innerWidth;     // resizing a canvas clears it; loop redraws next frame
+  H = canvas.height = window.innerHeight;
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(layout, 120);     // paper texture is heavy — rebuild once resizing stops
+});
 
 // ── VECTOR / GEOMETRY ────────────────────────────────────────────────────────
 function segmentIntersect(ax,ay,bx,by, cx,cy,dx,dy) {
@@ -158,7 +120,7 @@ function segmentIntersect(ax,ay,bx,by, cx,cy,dx,dy) {
 
 // ── DRAW HELPERS ──────────────────────────────────────────────────────────────
 function drawPaper() {
-  ctx.drawImage(offPaper, 0, 0);
+  ctx.drawImage(offPaper, 0, 0, W, H);   // stretched briefly while a resize settles
 }
 
 const GRID = 40;
@@ -318,138 +280,446 @@ function drawBtn(x, y, w, h, label, accentCol) {
   return hov;
 }
 
-// ── DEMO LASER RENDERING ─────────────────────────────────────────────────────
-function drawDemo() {
-  // Draw the two reflector lines for the demo
-  for (const ln of demo.lines) {
+// ── MENU BEAM (interactive) ──────────────────────────────────────────────────
+// The beam bounces around the whole screen. Drag the mirrors to steer it,
+// and land it in the GOAL ring. The beam's look is the same one used in-game.
+const BEAM_SPEED = 3.2;
+const beam    = { x: 0, y: 0, dx: 0, dy: 0, trail: [], maxTrail: 90 };
+const mirrors = [];                                // draggable reflector lines
+const hit     = { title: 0, play: 0, how: 0 };     // flash timers when the beam touches UI
+const goal    = { x: 0, y: 0, r: 30, hits: 0, flash: 0, inside: false };
+let   drag    = null;                              // { m, mode: 'move'|'p1'|'p2', ox, oy }
+let   hoverMirror = null;
+
+/** Where the menu pieces sit — also used by the beam as obstacles */
+function menuRects() {
+  const cx = W / 2, ty = Math.max(150, H * 0.30);
+  return {
+    cx, ty,
+    title: { x: cx - 270, y: ty - 90,  w: 540, h: 165 },
+    play:  { x: cx - 120, y: ty + 95,  w: 240, h: 58  },
+    how:   { x: cx - 120, y: ty + 169, w: 240, h: 50  },
+  };
+}
+
+function resetBeam() {
+  const a = -0.35;
+  beam.x = 66;  beam.y = H * 0.62;
+  beam.dx = Math.cos(a) * BEAM_SPEED;
+  beam.dy = Math.sin(a) * BEAM_SPEED;
+  beam.trail = [];
+}
+
+function layoutMenu() {
+  mirrors.length = 0;
+  mirrors.push(
+    { x1: W*0.16, y1: H*0.80, x2: W*0.16 + 120, y2: H*0.80 - 100, cd: 0 },
+    { x1: W*0.80, y1: H*0.30, x2: W*0.80 + 110, y2: H*0.30 + 90,  cd: 0 },
+    { x1: W*0.10, y1: H*0.22, x2: W*0.10 + 110, y2: H*0.22 + 60,  cd: 0 },
+  );
+  goal.x = W - 110;  goal.y = H * 0.50;
+  resetBeam();
+}
+
+function reflectOff(m) {
+  const nx = -(m.y2 - m.y1), ny = (m.x2 - m.x1);
+  const len = Math.hypot(nx, ny);
+  const unx = nx / len, uny = ny / len;
+  const dot = beam.dx * unx + beam.dy * uny;
+  beam.dx -= 2 * dot * unx;
+  beam.dy -= 2 * dot * uny;
+}
+
+function updateBeam() {
+  beam.trail.push({ x: beam.x, y: beam.y });
+  if (beam.trail.length > beam.maxTrail) beam.trail.shift();
+
+  const px = beam.x, py = beam.y;
+  let nx = px + beam.dx, ny = py + beam.dy;
+
+  // Mirrors
+  for (const m of mirrors) {
+    if (m.cd > 0) { m.cd--; continue; }
+    if (segmentIntersect(px, py, nx, ny, m.x1, m.y1, m.x2, m.y2)) {
+      reflectOff(m);
+      m.cd = 8;                       // stops double-bounce on the same mirror
+      nx = px + beam.dx;  ny = py + beam.dy;
+    }
+  }
+
+  // Title + buttons act as solid blocks
+  const R = menuRects(), PAD = 6;
+  for (const key of ['title', 'play', 'how']) {
+    const r = R[key];
+    const inside = (x, y) => x > r.x - PAD && x < r.x + r.w + PAD && y > r.y - PAD && y < r.y + r.h + PAD;
+    if (inside(nx, ny) && !inside(px, py)) {
+      const fromSide = px <= r.x - PAD || px >= r.x + r.w + PAD;
+      if (fromSide) beam.dx *= -1; else beam.dy *= -1;
+      nx = px + beam.dx;  ny = py + beam.dy;
+      hit[key] = 1;
+    }
+  }
+
+  // Screen edges (just inside the rulers)
+  const M = 24;
+  if (nx < M || nx > W - M) { beam.dx *= -1; nx = Math.max(M, Math.min(W - M, nx)); }
+  if (ny < M || ny > H - M) { beam.dy *= -1; ny = Math.max(M, Math.min(H - M, ny)); }
+
+  beam.x = nx;  beam.y = ny;
+
+  // Goal ring: count each time the beam enters it
+  const d = Math.hypot(beam.x - goal.x, beam.y - goal.y);
+  if (d < goal.r) {
+    if (!goal.inside) { goal.hits++; goal.flash = 1; goal.inside = true; }
+  } else {
+    goal.inside = false;
+  }
+
+  for (const k in hit) hit[k] = Math.max(0, hit[k] - 0.04);
+  goal.flash = Math.max(0, goal.flash - 0.03);
+}
+
+// ── MIRROR DRAGGING ──────────────────────────────────────────────────────────
+function distToSegment(px, py, x1, y1, x2, y2) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const t = Math.max(0, Math.min(1, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)));
+  return Math.hypot(px - (x1 + t * dx), py - (y1 + t * dy));
+}
+
+/** Which mirror (and which part of it) is under the point? */
+function pickMirror(px, py) {
+  for (const m of mirrors) {
+    if (Math.hypot(px - m.x1, py - m.y1) < 16) return { m, mode: 'p1' };
+    if (Math.hypot(px - m.x2, py - m.y2) < 16) return { m, mode: 'p2' };
+  }
+  for (const m of mirrors) {
+    if (distToSegment(px, py, m.x1, m.y1, m.x2, m.y2) < 12) return { m, mode: 'move' };
+  }
+  return null;
+}
+
+function clampX(x) { return Math.max(30, Math.min(W - 30, x)); }
+function clampY(y) { return Math.max(30, Math.min(H - 30, y)); }
+
+function dragMirror(px, py) {
+  const { m, mode } = drag;
+  if (mode === 'p1') { m.x1 = clampX(px); m.y1 = clampY(py); }
+  else if (mode === 'p2') { m.x2 = clampX(px); m.y2 = clampY(py); }
+  else {
+    const dx = px - drag.ox, dy = py - drag.oy;
+    // Keep both ends on screen
+    const mx = Math.min(Math.max(dx, 30 - Math.min(m.x1, m.x2)), W - 30 - Math.max(m.x1, m.x2));
+    const my = Math.min(Math.max(dy, 30 - Math.min(m.y1, m.y2)), H - 30 - Math.max(m.y1, m.y2));
+    m.x1 += mx; m.x2 += mx; m.y1 += my; m.y2 += my;
+    drag.ox = px; drag.oy = py;
+  }
+  // Keep a minimum length so the mirror can't collapse to a dot
+  if (Math.hypot(m.x2 - m.x1, m.y2 - m.y1) < 40) {
+    const a = Math.atan2(m.y2 - m.y1, m.x2 - m.x1);
+    if (mode === 'p2') { m.x2 = m.x1 + Math.cos(a) * 40; m.y2 = m.y1 + Math.sin(a) * 40; }
+    else if (mode === 'p1') { m.x1 = m.x2 - Math.cos(a) * 40; m.y1 = m.y2 - Math.sin(a) * 40; }
+  }
+}
+
+// ── MENU DRAWING ─────────────────────────────────────────────────────────────
+/** Drafting rulers along the top and left edges */
+function drawRulers() {
+  const T = 18;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.fillRect(0, 0, W, T);
+  ctx.fillRect(0, 0, T, H);
+  ctx.strokeStyle = 'rgba(55, 95, 155, 0.55)';
+  ctx.fillStyle   = 'rgba(55, 95, 155, 0.65)';
+  ctx.lineWidth   = 1;
+  ctx.font        = `10px 'Patrick Hand', cursive`;
+  ctx.textBaseline = 'top';
+  ctx.beginPath();
+  for (let x = T; x < W; x += 10) {
+    const len = (x % 100 === 0) ? 12 : (x % 50 === 0 ? 9 : 5);
+    ctx.moveTo(x + 0.5, T); ctx.lineTo(x + 0.5, T - len);
+  }
+  for (let y = T; y < H; y += 10) {
+    const len = (y % 100 === 0) ? 12 : (y % 50 === 0 ? 9 : 5);
+    ctx.moveTo(T, y + 0.5); ctx.lineTo(T - len, y + 0.5);
+  }
+  ctx.moveTo(0, T + 0.5); ctx.lineTo(W, T + 0.5);
+  ctx.moveTo(T + 0.5, 0); ctx.lineTo(T + 0.5, H);
+  ctx.stroke();
+  ctx.textAlign = 'left';
+  for (let x = 100; x < W; x += 100) ctx.fillText(x, x + 3, 2);
+  ctx.save();
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = 'right';
+  for (let y = 100; y < H; y += 100) ctx.fillText(y, -(y + 3), 2);
+  ctx.restore();
+  ctx.restore();
+}
+
+/** Drafting-sheet title block, bottom-right */
+function drawTitleBlock() {
+  if (W < 1150) return;
+  const w = 230, h = 72, x = W - w - 24, y = H - h - 24;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = 'rgba(55, 95, 155, 0.6)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x, y, w, h);
+  ctx.beginPath();
+  ctx.moveTo(x, y + 28); ctx.lineTo(x + w, y + 28);
+  ctx.moveTo(x + w/2, y + 28); ctx.lineTo(x + w/2, y + h);
+  ctx.stroke();
+  ctx.fillStyle = C.ink;
+  ctx.textAlign = 'center';
+  ctx.font = `bold 20px 'Caveat', cursive`;
+  ctx.fillText('REFRACT — SHEET 01', x + w/2, y + 20);
+  ctx.fillStyle = 'rgba(55, 95, 155, 0.8)';
+  ctx.font = `13px 'Patrick Hand', cursive`;
+  ctx.fillText('SCALE 1 : 1', x + w/4, y + 54);
+  ctx.fillText(`GOAL HITS: ${goal.hits}`, x + w*3/4, y + 54);
+  ctx.restore();
+}
+
+/** Three little cards that explain the game at a glance */
+function drawCards(topY) {
+  const cw = 190, ch = 74, gap = 16;
+  const x0 = W/2 - (cw*3 + gap*2) / 2;
+  const items = [['1', 'AIM',    'drag a mirror'],
+                 ['2', 'BOUNCE', 'bend the beam'],
+                 ['3', 'SCORE',  'land it in the goal']];
+  items.forEach(([n, head, sub], i) => {
+    const x = x0 + i * (cw + gap);
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillRect(x, topY, cw, ch);
+    ctx.restore();
+    sketchRect(x, topY, cw, ch, 1.6, 'rgba(30,30,30,0.55)');
+    ctx.save();
+    ctx.fillStyle = C.accent;
+    ctx.beginPath(); ctx.arc(x + 26, topY + ch/2, 15, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold 20px 'Caveat', cursive`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(n, x + 26, topY + ch/2 + 1);
+    ctx.fillStyle = C.ink;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = `bold 26px 'Caveat', cursive`;
+    ctx.fillText(head, x + 52, topY + 33);
+    ctx.fillStyle = C.inkMid;
+    ctx.font = `15px 'Patrick Hand', cursive`;
+    ctx.fillText(sub, x + 52, topY + 55);
+    ctx.restore();
+  });
+}
+
+/** Laser emitter on the left edge where the beam is born */
+function drawEmitter() {
+  const y = H * 0.62;
+  sketchRect(26, y - 16, 34, 32, 1.8, 'rgba(55, 90, 155, 0.75)');
+  ctx.save();
+  ctx.fillStyle = 'rgba(55, 90, 155, 0.25)';
+  ctx.fillRect(26, y - 16, 34, 32);
+  ctx.fillStyle = C.accent;
+  ctx.beginPath(); ctx.arc(60, y, 4, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+/** The goal ring — beam passing through it counts a hit */
+function drawGoal() {
+  const pulse = 0.5 + 0.5 * Math.sin(frame * 0.06);
+  ctx.save();
+  if (goal.flash > 0) {
+    ctx.fillStyle = `rgba(192, 57, 43, ${goal.flash * 0.28})`;
+    ctx.beginPath(); ctx.arc(goal.x, goal.y, goal.r + 14 * goal.flash, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.strokeStyle = C.ink;
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 5]);
+  ctx.beginPath(); ctx.arc(goal.x, goal.y, goal.r + pulse * 3, 0, Math.PI*2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(goal.x, goal.y, goal.r * 0.5, 0, Math.PI*2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(goal.x - goal.r - 10, goal.y); ctx.lineTo(goal.x + goal.r + 10, goal.y);
+  ctx.moveTo(goal.x, goal.y - goal.r - 10); ctx.lineTo(goal.x, goal.y + goal.r + 10);
+  ctx.stroke();
+  ctx.fillStyle = C.ink;
+  ctx.textAlign = 'center';
+  ctx.font = `bold 22px 'Caveat', cursive`;
+  ctx.fillText('GOAL', goal.x, goal.y - goal.r - 18);
+  ctx.fillStyle = C.accent;
+  ctx.font = `15px 'Patrick Hand', cursive`;
+  ctx.fillText(`hits: ${goal.hits}`, goal.x, goal.y + goal.r + 26);
+  ctx.restore();
+}
+
+/** Draggable mirrors — drawn like the original demo reflector lines */
+function drawMirrors() {
+  for (const m of mirrors) {
+    const active = (drag && drag.m === m) || hoverMirror === m;
     ctx.save();
     ctx.strokeStyle = C.ink;
-    ctx.lineWidth   = 2.5;
+    ctx.lineWidth   = active ? 3.5 : 2.5;
     ctx.lineCap     = 'round';
-    // Glow
     ctx.shadowColor = 'rgba(0,0,0,0.12)';
     ctx.shadowBlur  = 4;
     ctx.beginPath();
-    ctx.moveTo(ln.x1, ln.y1);
-    ctx.lineTo(ln.x2, ln.y2);
+    ctx.moveTo(m.x1, m.y1);
+    ctx.lineTo(m.x2, m.y2);
     ctx.stroke();
     ctx.restore();
-    // Small circles at endpoints
     ctx.save();
-    ctx.fillStyle   = C.ink;
-    ctx.globalAlpha = 0.4;
-    ctx.beginPath(); ctx.arc(ln.x1, ln.y1, 3, 0, Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.arc(ln.x2, ln.y2, 3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = C.ink;
+    ctx.globalAlpha = active ? 0.9 : 0.4;
+    const r = active ? 6 : 3;
+    ctx.beginPath(); ctx.arc(m.x1, m.y1, r, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(m.x2, m.y2, r, 0, Math.PI*2); ctx.fill();
     ctx.restore();
   }
+}
 
-  // Label
-  ctx.save();
-  ctx.fillStyle    = C.inkLight;
-  ctx.font         = `13px 'Patrick Hand', cursive`;
-  ctx.textAlign    = 'center';
-  ctx.fillText('↑ live laser preview — this is what gameplay looks like', W/2, DEMO_AREA.y2 - 8);
-  ctx.restore();
-
+/** The beam itself — trail + glowing head (unchanged design) */
+function drawBeam() {
   // Laser trail
   ctx.save();
-  for (let i = 1; i < demo.trail.length; i++) {
-    const t = i / demo.trail.length;
+  for (let i = 1; i < beam.trail.length; i++) {
+    const t = i / beam.trail.length;
     ctx.strokeStyle = `rgba(192, 57, 43, ${t * 0.55})`;
     ctx.lineWidth   = 1 + t * 1.8;
     ctx.lineCap     = 'round';
     ctx.beginPath();
-    ctx.moveTo(demo.trail[i-1].x, demo.trail[i-1].y);
-    ctx.lineTo(demo.trail[i].x, demo.trail[i].y);
+    ctx.moveTo(beam.trail[i-1].x, beam.trail[i-1].y);
+    ctx.lineTo(beam.trail[i].x, beam.trail[i].y);
     ctx.stroke();
   }
   ctx.restore();
 
   // Laser head glow
-  const gr = ctx.createRadialGradient(demo.x, demo.y, 0, demo.x, demo.y, 16);
+  const gr = ctx.createRadialGradient(beam.x, beam.y, 0, beam.x, beam.y, 16);
   gr.addColorStop(0, 'rgba(192, 57, 43, 0.75)');
   gr.addColorStop(1, 'rgba(192, 57, 43, 0)');
   ctx.fillStyle = gr;
-  ctx.beginPath(); ctx.arc(demo.x, demo.y, 16, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(beam.x, beam.y, 16, 0, Math.PI*2); ctx.fill();
   // Hot core
   ctx.fillStyle = '#FF6B6B';
-  ctx.beginPath(); ctx.arc(demo.x, demo.y, 3.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(beam.x, beam.y, 3.5, 0, Math.PI*2); ctx.fill();
   ctx.fillStyle = '#FFFFFF';
-  ctx.beginPath(); ctx.arc(demo.x, demo.y, 1.5, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(beam.x, beam.y, 1.5, 0, Math.PI*2); ctx.fill();
+}
+
+/** Red outline that flares when the beam touches a piece of UI */
+function flashRect(r, amount) {
+  if (amount <= 0) return;
+  ctx.save();
+  ctx.strokeStyle = `rgba(192, 57, 43, ${amount})`;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(r.x - 6, r.y - 6, r.w + 12, r.h + 12);
+  ctx.restore();
 }
 
 // ── MENU ─────────────────────────────────────────────────────────────────────
 function drawMenu() {
+  const R = menuRects();
+  const cx = R.cx, ty = R.ty;
+
   // ── Title ──
   ctx.save();
   ctx.textAlign = 'center';
-
-  // Title shadow
   ctx.font      = `bold 112px 'Caveat', cursive`;
   ctx.fillStyle = 'rgba(0,0,0,0.07)';
-  ctx.fillText('REFRACT', W/2 + 5, 198);
-
-  // Title stroke (outline effect)
+  ctx.fillText('REFRACT', cx + 5, ty + 5);
   ctx.strokeStyle = 'rgba(0,0,0,0.1)';
   ctx.lineWidth   = 4;
   ctx.lineJoin    = 'round';
-  ctx.strokeText('REFRACT', W/2, 193);
-
-  // Title fill
+  ctx.strokeText('REFRACT', cx, ty);
   ctx.fillStyle = C.ink;
-  ctx.fillText('REFRACT', W/2, 193);
+  ctx.fillText('REFRACT', cx, ty);
   ctx.restore();
 
-  // Wavy red underline below title
-  const titleW = 520;
-  wavyLine(W/2 - titleW/2, W/2 + titleW/2, 210, 4, C.accent);
+  // Wavy red underline (livelier when the beam hits the title)
+  wavyLine(cx - 260, cx + 260, ty + 17, 4 + hit.title * 4, C.accent);
 
   // Subtitle
   ctx.save();
-  ctx.textAlign    = 'center';
-  ctx.fillStyle    = C.inkMid;
-  ctx.font         = `20px 'Patrick Hand', cursive`;
-  ctx.fillText('Draw the path.  Bend the light.  Get it in the hole.', W/2, 245);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.inkMid;
+  ctx.font      = `20px 'Patrick Hand', cursive`;
+  ctx.fillText('Draw the path.  Bend the light.  Get it in the hole.', cx, ty + 52);
   ctx.restore();
-
-  // Pencil rule line
-  ctx.save();
-  ctx.strokeStyle = 'rgba(0,0,0,0.10)';
-  ctx.lineWidth   = 1.5;
-  ctx.lineCap     = 'round';
-  ctx.beginPath();
-  ctx.moveTo(W/2 - 340, 272);
-  for (let i = 0; i <= 680; i += 6) {
-    ctx.lineTo(W/2 - 340 + i, 272 + Math.sin(i * 0.09 + frame*0.02) * 1.8);
-  }
-  ctx.stroke();
-  ctx.restore();
+  flashRect(R.title, hit.title);
 
   // ── Buttons ──
-  drawBtn(W/2 - 120, 290, 240, 58, '▶   PLAY', C.accent);
-  drawBtn(W/2 - 120, 366, 240, 50, '?   HOW TO PLAY', C.inkMid);
+  drawBtn(R.play.x, R.play.y, R.play.w, R.play.h, '▶   PLAY', C.accent);
+  drawBtn(R.how.x,  R.how.y,  R.how.w,  R.how.h,  '?   HOW TO PLAY', C.inkMid);
+  flashRect(R.play, hit.play);
+  flashRect(R.how,  hit.how);
 
-  // ── Small labels beside buttons ──
-  ctx.save();
-  ctx.fillStyle = C.inkLight;
-  ctx.font      = `12px 'Patrick Hand', cursive`;
-  ctx.textAlign = 'left';
-  ctx.fillText('← click to start', W/2 + 128, 323);
-  ctx.restore();
-
-  // ── Corner markers (like blueprint cross marks from ref image) ──
-  drawCross(50, 50, 14);
-  drawCross(W-50, 50, 14);
-  drawCross(50, H-50, 14);
-  drawCross(W-50, H-50, 14);
-
-  // ── Footer ──
+  // Hint under the buttons
   ctx.save();
   ctx.textAlign = 'center';
-  ctx.fillStyle = C.inkLight;
-  ctx.font      = `12px 'Patrick Hand', cursive`;
-  ctx.fillText('REFRACT  ·  Phase 2  ·  Use mouse to draw reflector lines', W/2, H - 14);
+  ctx.fillStyle = C.inkMid;
+  ctx.font      = `16px 'Patrick Hand', cursive`;
+  ctx.fillText('✎ drag the mirrors — steer the beam into the GOAL ring', cx, R.how.y + R.how.h + 34);
   ctx.restore();
+
+  drawCards(H - 120);
+  drawTitleBlock();
+
+  // ── Blueprint cross marks ──
+  drawCross(46, 46, 14);
+  drawCross(W-46, 46, 14);
+  drawCross(46, H-46, 14);
+  if (W < 1150) drawCross(W-46, H-46, 14);   // title block sits here on wide screens
+}
+
+// ── HOW TO PLAY ──────────────────────────────────────────────────────────────
+const HOWTO_BACK = () => ({ x: W/2 - 90, y: Math.max(40, H/2 - 240) + 440 + 20, w: 180, h: 46 });
+
+function drawHowTo() {
+  const pw = Math.min(760, W - 80), ph = 440;
+  const px = W/2 - pw/2, py = Math.max(40, H/2 - ph/2 - 20);
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.fillRect(px, py, pw, ph);
+  ctx.restore();
+  sketchRect(px, py, pw, ph, 2.5, C.ink);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.ink;
+  ctx.font = `bold 58px 'Caveat', cursive`;
+  ctx.fillText('HOW TO PLAY', W/2, py + 66);
+  ctx.restore();
+  wavyLine(W/2 - 150, W/2 + 150, py + 80, 3, C.accent);
+
+  const lines = [
+    ['A laser beam fires from the emitter on the left wall.',            false],
+    ['You can not slow it down or stop it — you only steer it.',         false],
+    ['Mirrors (reflector lines) bounce the beam at the matching angle.', false],
+    ['Move and rotate the mirrors to change the beam’s direction.',      false],
+    ['Guide the beam into the GOAL hole on the right wall.',             true ],
+  ];
+  ctx.save();
+  lines.forEach(([text, strong], i) => {
+    const y = py + 140 + i * 52;
+    ctx.fillStyle = C.accent;
+    ctx.beginPath(); ctx.arc(px + 44, y - 7, 13, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold 17px 'Architects Daughter', cursive`;
+    ctx.textAlign = 'center';
+    ctx.fillText(i + 1, px + 44, y - 1);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = strong ? C.accent : C.ink;
+    ctx.font = `${strong ? 'bold ' : ''}22px 'Patrick Hand', cursive`;
+    ctx.fillText(text, px + 72, y);
+  });
+  ctx.restore();
+
+  const b = HOWTO_BACK();
+  drawBtn(b.x, b.y, b.w, b.h, '←   BACK', C.inkMid);
 }
 
 /** Cross marker like the ones in the blueprint reference image */
@@ -871,44 +1141,80 @@ function loop() {
   frame++;
   drawPaper();
   drawGrid();
-  drawDoodles();
 
   if (state === 'MENU') {
-    drawRuledLines();
-    updateDemo();
-    drawDemo();
+    drawRulers();
+    drawDoodles();
+    drawEmitter();
+    drawGoal();
     drawMenu();
+    drawMirrors();
+    updateBeam();
+    drawBeam();
+  } else if (state === 'HOWTO') {
+    drawRulers();
+    drawDoodles();
+    drawHowTo();
   } else if (state === 'PLAYING') {
+    drawDoodles();
     drawPlaying();
   }
 
-  // Change cursor style based on state
-  canvas.style.cursor = state === 'PLAYING' ? 'crosshair' : 'default';
+  // Cursor reflects what is under the mouse
+  let cur = 'default';
+  if (state === 'PLAYING') cur = 'crosshair';
+  else if (state === 'MENU') {
+    const R = menuRects();
+    if (drag) cur = 'grabbing';
+    else if (hoverMirror) cur = 'grab';
+    else if (inRect(mouse, R.how)) cur = 'pointer';
+  } else if (state === 'HOWTO') {
+    if (inRect(mouse, HOWTO_BACK())) cur = 'pointer';
+  }
+  canvas.style.cursor = cur;
 
   requestAnimationFrame(loop);
 }
 
 // ── INPUT ─────────────────────────────────────────────────────────────────────
-canvas.addEventListener('mousemove', e => {
+function toCanvas(e) {
   const r = canvas.getBoundingClientRect();
-  mouse.x = (e.clientX - r.left) * (W / r.width);
-  mouse.y = (e.clientY - r.top)  * (H / r.height);
+  return { x: (e.clientX - r.left) * (W / r.width), y: (e.clientY - r.top) * (H / r.height) };
+}
+
+function inRect(p, r) {
+  return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+}
+
+canvas.addEventListener('pointermove', e => {
+  const p = toCanvas(e);
+  mouse.x = p.x;  mouse.y = p.y;
+  if (state !== 'MENU') return;
+  if (drag) dragMirror(p.x, p.y);
+  else { const pk = pickMirror(p.x, p.y); hoverMirror = pk ? pk.m : null; }
 });
 
-canvas.addEventListener('click', e => {
-  const r = canvas.getBoundingClientRect();
-  const mx = (e.clientX - r.left) * (W / r.width);
-  const my = (e.clientY - r.top)  * (H / r.height);
+canvas.addEventListener('pointerdown', e => {
+  const p = toCanvas(e);
+  mouse.x = p.x;  mouse.y = p.y;
+  if (state !== 'MENU') return;
+  const pk = pickMirror(p.x, p.y);
+  if (pk) {
+    drag = { m: pk.m, mode: pk.mode, ox: p.x, oy: p.y };
+    canvas.setPointerCapture(e.pointerId);
+  }
+});
 
+canvas.addEventListener('pointerup', () => { drag = null; });
+
+canvas.addEventListener('click', e => {
+  const p = toCanvas(e);
   if (state === 'MENU') {
-    // PLAY button: x=W/2-120, y=290, w=240, h=58
-    if (mx >= W/2-120 && mx <= W/2+120 && my >= 290 && my <= 348) {
-      state = 'PLAYING';
-    }
-    // HOW TO button: y=366, h=50
-    if (mx >= W/2-120 && mx <= W/2+120 && my >= 366 && my <= 416) {
-      // Phase 5 will implement this
-    }
+    const R = menuRects();
+    // PLAY does nothing yet — the play screen will be connected later
+    if (inRect(p, R.how)) state = 'HOWTO';
+  } else if (state === 'HOWTO') {
+    if (inRect(p, HOWTO_BACK())) state = 'MENU';
   }
 });
 
@@ -917,4 +1223,5 @@ document.addEventListener('keydown', e => {
 });
 
 // ── START ─────────────────────────────────────────────────────────────────────
+layout();
 requestAnimationFrame(loop);

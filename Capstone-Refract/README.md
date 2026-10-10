@@ -1,28 +1,43 @@
 # ✏️ Refract
 
-**Refract** is a real-time laser drawing puzzle game built in HTML5 Canvas and vanilla JavaScript. No frameworks, no libraries — just a single HTML file opened in any browser.
+**Refract** is a laser-steering puzzle game built with HTML5 Canvas and vanilla JavaScript. No frameworks, no libraries — just open `index.html` in any browser.
 
-> *Draw the path. Bend the light. Get it in the hole.*
+> *Bend the light. Get it in the hole.*
 
 ---
 
-## 🎯 Gameplay
+## 🎯 The Game
 
-A laser fires from the left wall and travels across the screen in real time.
+A laser beam fires from the **emitter** on the left wall and keeps moving — you can't slow it down or stop it.
+The only thing you control is **its direction**.
 
-You **click and drag** to draw a reflector line on the screen. The laser hits your line and bounces off at the matching angle.
+Place and move **mirrors** (reflector lines). When the beam hits a mirror it bounces off at the matching angle.
+Steer it, bounce by bounce, until it lands in the **goal hole** on the right wall.
 
-Your goal: guide the laser beam into the **hole** on the right wall before it hits an obstacle.
+1. **Aim** — move and rotate the mirrors
+2. **Bounce** — the beam reflects off each mirror
+3. **Score** — land the beam in the goal hole
 
-The laser gets faster every level. Your drawn lines have a length limit — you can't cover everything.
+---
+
+## 🕹️ What Works Right Now
+
+### Home screen
+- Fills the whole browser window and resizes with it
+- Drafting-sheet look: paper texture, blueprint grid, edge rulers, pencil doodles, title block
+- A live laser beam bounces around the whole screen — off the screen edges, the title and the buttons
+- **Drag the mirrors** to steer the beam; drag a mirror's end to rotate it, drag its middle to move it
+- Land the beam in the **GOAL** ring to count a hit
+- **HOW TO PLAY** screen explains the game
 
 ### Controls
 
 | Input | Action |
 |-------|--------|
-| Click + Drag | Draw a reflector line |
-| Click existing line | Erase it |
-| `ESC` | Return to menu |
+| Click + drag a mirror's middle (home screen) | Move the mirror |
+| Click + drag a mirror's end (home screen) | Rotate / resize the mirror |
+| Click `HOW TO PLAY` | Open the how-to-play screen |
+| `ESC` | Return to the home screen |
 
 ---
 
@@ -30,28 +45,19 @@ The laser gets faster every level. Your drawn lines have a length limit — you 
 
 No installation. No compilation. Just:
 
-1. Open `Capstone-Refract/` in File Explorer
+1. Open the `Capstone-Refract/` folder in File Explorer
 2. Double-click `index.html`
 3. It opens in your default browser — done
 
 ---
 
-## 🗺️ Development Phases
+## 🗺️ Progress
 
 | Phase | Description | Status |
 |-------|-------------|--------|
-| **1** | Title screen, paper/pencil theme, animated demo laser | ✅ Done |
-| **2** | Play area, laser source, hole/goal — static display | 🟡 Next |
-| **3** | Real-time laser movement | ⬜ |
-| **4** | Player draws reflector lines (click + drag) | ⬜ |
-| **5** | Laser reflects off player lines (physics) | ⬜ |
-| **6** | Win/lose conditions | ⬜ |
-| **7** | Stone wall + absorber obstacles | ⬜ |
-| **8** | Speed increase per level | ⬜ |
-| **9** | More obstacles (bouncers, timed blocks, moving walls) | ⬜ |
-| **10** | Level system — 5 designed levels | ⬜ |
-| **11** | Sound effects | ⬜ |
-| **12** | Visual polish + high score | ⬜ |
+| 1 | Title screen, paper/pencil theme, bouncing laser | ✅ Done |
+| 2 | Play area, laser source, goal hole (static, not connected to the PLAY button yet) | ✅ Done |
+| 3 | Home screen redesign: full-window layout, interactive beam and mirrors, how-to-play screen | ✅ Done |
 
 ---
 
@@ -60,28 +66,29 @@ No installation. No compilation. Just:
 ```
 Capstone-Refract/
 ├── index.html   — HTML shell, Google Fonts
-├── style.css    — Paper background, canvas shadow
-└── game.js      — Everything: rendering, physics, input, game logic
+├── style.css    — Full-window canvas, paper background
+└── game.js      — Rendering, beam physics, input, screens
 ```
 
 | Concept | Where Used |
 |---------|-----------|
 | HTML5 Canvas 2D API | All rendering |
 | `requestAnimationFrame` | 60 fps game loop |
-| Vector reflection math | Laser physics (`game.js`) |
+| Window `resize` handling | Full-window canvas and layout |
+| Vector reflection math | Beam bouncing off mirrors, title and buttons |
+| Segment intersection geometry | Beam–mirror collision |
+| Pointer events | Dragging mirrors (mouse and touch) |
 | Pre-rendered offscreen canvas | Paper texture (performance) |
-| Segment intersection geometry | Line-laser collision detection |
-| Vanilla JS state machine | `MENU` → `PLAYING` → `WIN` / `LOSE` |
+| Vanilla JS state machine | `MENU` · `HOWTO` · `PLAYING` |
 
 ---
 
 ## 🎨 Visual Theme
 
-Warm paper / pencil sketch aesthetic inspired by blueprint drafting paper.
+Warm paper / pencil-sketch aesthetic inspired by blueprint drafting paper.
 
 - Background: warm cream `#F6F1E9` with grain noise
-- Grid: faint blueprint-blue lines
-- Laser: deep red `#C0392B` with glow trail
-- Reflector lines: dark charcoal, hand-drawn style
-- Obstacles: hatched rectangles (blueprint wall style)
+- Grid and rulers: faint blueprint blue
+- Beam: deep red `#C0392B` with a fading trail and glowing head
+- Mirrors: dark charcoal lines
 - UI: sketch-style outlined buttons, `Caveat` handwriting font
