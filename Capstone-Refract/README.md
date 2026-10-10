@@ -91,6 +91,7 @@ No installation. No compilation. Just:
 | 7 | Stone wall obstacles that absorb the beam and block tiles | ✅ Done |
 | 8 | 5 levels with a faster beam each level, NEXT LEVEL and ALL CLEAR screens | ✅ Done |
 | 9 | Random, always-winnable levels (8) with stars, portals, blinking blocks and sliding bars | ✅ Done |
+| 10 | Synthesised sound (Web Audio): musical bounces, star chimes, portal whoosh, win fanfare, looping background song that gets faster and fuller each level, `M` to mute | ✅ Done |
 
 ---
 
