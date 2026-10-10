@@ -99,7 +99,7 @@ function layout() {
   buildPaper();
   buildDoodles();
   layoutMenu();
-  clearTiles();
+  resetPlay();
 }
 
 let resizeTimer = null;
@@ -323,6 +323,7 @@ function resetShot() {
 }
 
 function updateShot() {
+  if (play.won) return;                      // level is solved — beam stays in the hole
   shot.spark = Math.max(0, shot.spark - 0.03);
   if (shot.wait > 0) {                       // beam is resting after hitting a wall
     shot.trail.shift();                      // trail fades out
@@ -347,6 +348,15 @@ function updateShot() {
 
   shot.x = nx;  shot.y = ny;
 
+  // Goal hole
+  if (Math.hypot(shot.x - HOLE.x, shot.y - HOLE.y) < HOLE.r) {
+    shot.x = HOLE.x;  shot.y = HOLE.y;
+    shot.sx = shot.x;  shot.sy = shot.y;
+    shot.spark = 1;
+    play.won = true;
+    return;
+  }
+
   // Walls
   const x1 = INT.x, x2 = INT.x + INT.w, y1 = INT.y, y2 = INT.y + INT.h;
   if (shot.x <= x1 || shot.x >= x2 || shot.y <= y1 || shot.y >= y2) {
@@ -355,12 +365,14 @@ function updateShot() {
     shot.sx = shot.x;  shot.sy = shot.y;
     shot.spark = 1;
     shot.wait = 90;
+    play.misses++;
   }
 }
 
 /** Beam + the spark where it strikes a wall */
 function drawShot() {
   drawBeamOf(shot, shot.wait === 0);
+  if (play.won) shot.spark = 0.6 + 0.4 * Math.sin(frame * 0.15);   // keeps glowing in the hole
   if (shot.spark > 0) {
     const r = 12 + shot.spark * 8;
     const sg = ctx.createRadialGradient(shot.sx, shot.sy, 0, shot.sx, shot.sy, r);
@@ -381,6 +393,19 @@ let   drawing  = null;      // tile being drawn: { x1, y1, x2, y2 }
 
 function clearTiles() {
   tiles.length = 0;  oldTiles.length = 0;  drawing = null;
+}
+
+// ── WIN STATE ────────────────────────────────────────────────────────────────
+// The level is won when the beam reaches the goal hole. A beam that hits any
+// other part of a wall is a miss and simply fires again.
+const play = { won: false, misses: 0 };
+
+/** Fresh attempt: no tiles, beam back at the source, counters cleared */
+function resetPlay() {
+  clearTiles();
+  resetShot();
+  play.won    = false;
+  play.misses = 0;
 }
 
 /** End point for the tile being drawn: kept inside the play area and within the length limit */
@@ -889,6 +914,47 @@ function drawPlaying() {
   drawHUD();
   const b = PLAY_MENU_BTN();
   drawBtn(b.x, b.y, b.w, b.h, '←  MENU', C.inkMid);
+  if (play.won) drawWin();
+}
+
+// ── WIN SCREEN ───────────────────────────────────────────────────────────────
+const WIN_BTNS = () => ({
+  again: { x: W/2 - 190, y: H/2 + 40, w: 180, h: 50 },
+  menu:  { x: W/2 + 10,  y: H/2 + 40, w: 180, h: 50 },
+});
+
+function drawWin() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(246, 241, 233, 0.65)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+
+  const pw = 460, ph = 250, px = W/2 - pw/2, py = H/2 - 130;
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillRect(px, py, pw, ph);
+  ctx.restore();
+  sketchRect(px, py, pw, ph, 2.5, C.ink);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.accent;
+  ctx.font = `bold 72px 'Caveat', cursive`;
+  ctx.fillText('GOAL!', W/2, py + 82);
+  ctx.restore();
+  wavyLine(W/2 - 110, W/2 + 110, py + 96, 3, C.accent);
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.inkMid;
+  ctx.font = `22px 'Patrick Hand', cursive`;
+  const m = play.misses;
+  ctx.fillText(m === 0 ? 'Perfect — first shot!' : `Solved after ${m} miss${m === 1 ? '' : 'es'}`, W/2, py + 135);
+  ctx.restore();
+
+  const B = WIN_BTNS();
+  drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, '↻   PLAY AGAIN', C.accent);
+  drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '←   MENU',       C.inkMid);
 }
 
 /** Full play area: interior fill + hatched walls + border */
@@ -1142,7 +1208,7 @@ function drawHUD() {
 
   // Left: level
   ctx.textAlign = 'left';
-  ctx.fillText(`LEVEL  ${LEVEL.num}`, hx, hy);
+  ctx.fillText(`LEVEL  ${LEVEL.num}   ·   MISSES: ${play.misses}`, hx, hy);
 
   // Centre: speed
   ctx.textAlign = 'center';
@@ -1246,7 +1312,11 @@ function loop() {
 
   // Cursor reflects what is under the mouse
   let cur = 'default';
-  if (state === 'PLAYING') cur = inRect(mouse, PLAY_MENU_BTN()) ? 'pointer' : 'crosshair';
+  if (state === 'PLAYING') {
+    const B = WIN_BTNS();
+    if (play.won) cur = (inRect(mouse, B.again) || inRect(mouse, B.menu)) ? 'pointer' : 'default';
+    else cur = inRect(mouse, PLAY_MENU_BTN()) ? 'pointer' : 'crosshair';
+  }
   else if (state === 'MENU') {
     const R = menuRects();
     if (drag) cur = 'grabbing';
@@ -1287,7 +1357,7 @@ canvas.addEventListener('pointerdown', e => {
   const p = toCanvas(e);
   mouse.x = p.x;  mouse.y = p.y;
   if (state === 'PLAYING') {
-    startTile(p.x, p.y);
+    if (!play.won) startTile(p.x, p.y);
     if (drawing) canvas.setPointerCapture(e.pointerId);
     return;
   }
@@ -1306,12 +1376,18 @@ canvas.addEventListener('click', e => {
   const p = toCanvas(e);
   if (state === 'MENU') {
     const R = menuRects();
-    if (inRect(p, R.play)) { clearTiles(); resetShot(); state = 'PLAYING'; }
+    if (inRect(p, R.play)) { resetPlay(); state = 'PLAYING'; }
     else if (inRect(p, R.how)) state = 'HOWTO';
   } else if (state === 'HOWTO') {
     if (inRect(p, HOWTO_BACK())) state = 'MENU';
   } else if (state === 'PLAYING') {
-    if (inRect(p, PLAY_MENU_BTN())) state = 'MENU';
+    if (play.won) {
+      const B = WIN_BTNS();
+      if (inRect(p, B.again)) resetPlay();
+      else if (inRect(p, B.menu)) state = 'MENU';
+    } else if (inRect(p, PLAY_MENU_BTN())) {
+      state = 'MENU';
+    }
   }
 });
 
