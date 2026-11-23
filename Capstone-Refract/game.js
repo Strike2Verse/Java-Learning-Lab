@@ -2099,7 +2099,7 @@ const LEVEL_INFO = [
   { name: 'DOUBLE BLINK' },
   { name: 'MASTER BLUEPRINT' },
 ];
-const LS = { hover: 0, note: '', noteT: 0, d: 0, t0: 0 };    // hovered card, "locked" note, beam distance
+const LS = { hover: 0, note: '', noteT: 0, d: 0, t0: 0, resetT: 0 };   // resetT: frames left in which a 2nd click confirms the reset    // hovered card, "locked" note, beam distance
 
 function levelRects() {
   const gap  = 28;
@@ -2119,6 +2119,7 @@ function levelRects() {
     back:  { x: gx,            y: by, w: 200, h: 46 },
     sound: { x: gx + gw - 170, y: by, w: 170, h: 46 },
     stars: { x: gx + 220,      y: by, w: gw - 220 - 190, h: 46 },
+    reset: { x: gx + gw - 190, y: 34, w: 190, h: 38 },
   };
 }
 
@@ -2425,6 +2426,11 @@ function drawLevels() {
   ctx.fillText(`★  TOTAL STARS: ${totalStars()}/${TOTAL_LEVELS * 3}`, sb.x + sb.w / 2, sb.y + sb.h / 2 + 1);
   ctx.restore();
 
+  // Reset progress: first click arms it, a second click within 3 seconds confirms
+  if (LS.resetT > 0) LS.resetT--;
+  const armed = LS.resetT > 0;
+  drawBtn(R.reset.x, R.reset.y, R.reset.w, R.reset.h, armed ? 'SURE?  CLICK AGAIN' : '↺  RESET PROGRESS', armed ? C.accent : C.inkLight);
+
   // "locked" note
   if (LS.noteT > 0) {
     LS.noteT--;
@@ -2479,7 +2485,7 @@ function loop() {
     if (inRect(mouse, HOWTO_BACK())) cur = 'pointer';
   } else if (state === 'LEVELS') {
     const R = levelRects();
-    if (inRect(mouse, R.back) || inRect(mouse, R.sound) || (LS.hover && isUnlocked(LS.hover))) cur = 'pointer';
+    if (inRect(mouse, R.back) || inRect(mouse, R.sound) || inRect(mouse, R.reset) || (LS.hover && isUnlocked(LS.hover))) cur = 'pointer';
   }
   drawFade();
   canvas.style.cursor = cur;
@@ -2542,6 +2548,12 @@ canvas.addEventListener('click', e => {
     const R = levelRects();
     if (inRect(p, R.back)) { sfx.click(); goTo('MENU'); }
     else if (inRect(p, R.sound)) sfx.toggle();
+    else if (inRect(p, R.reset)) {
+      if (LS.resetT > 0) {
+        progress.best.fill(0);  saveProgress();  LS.resetT = 0;
+        LS.note = 'Progress cleared';  LS.noteT = 120;  sfx.click();
+      } else { LS.resetT = 180;  sfx.click(); }
+    }
     else for (const c of R.cards) if (inRect(p, c)) {
       if (isUnlocked(c.n)) { sfx.click(); startGame(c.n); goTo('PLAYING'); }
       else { LS.note = `Clear level ${c.n - 1} first!`; LS.noteT = 120; sfx.denied(); }
