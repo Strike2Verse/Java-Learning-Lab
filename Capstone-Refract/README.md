@@ -53,19 +53,27 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - After level 8 an **ALL CLEAR!** screen shows your total misses, with **PLAY AGAIN** (back to level 1) and **MENU**
 - Hitting any other part of a wall counts as a miss; the HUD shows `MISSES: n`
 
+### Level select screen
+- **PLAY** opens a drafting-sheet "STAGE SELECT" with 8 level cards (name, hand-drawn animated icon, 3-star rating)
+- Stars: 3 = no misses, 2 = up to 2 misses, 1 = cleared. The best rating per level is saved in the browser (`localStorage`)
+- A level unlocks once the one before it is cleared; locked cards show a padlock
+- The bottom bar has `← MAIN MENU`, `TOTAL STARS: n/24` and a sound toggle
+- The win screen shows the stars you earned and a `LEVELS` button
+
 ### Controls
 
 | Input | Action |
 |-------|--------|
 | Click + drag a mirror's middle (home screen) | Move the mirror |
 | Click + drag a mirror's end (home screen) | Rotate / resize the mirror |
-| Click `PLAY` | Open the play screen |
+| Click `PLAY` | Open the level select screen |
+| Click a level card (level select) | Start that level (locked until the one before is cleared) |
 | Click + drag (play screen) | Draw a tile (max length, 3 at a time) |
 | Click `HOW TO PLAY` | Open the how-to-play screen |
-| Click `← MENU` (play screen) | Return to the home screen |
-| Click `NEXT LEVEL` / `PLAY AGAIN` / `MENU` (after winning) | Go to the next level (or restart from level 1 after the last) / return to the home screen |
+| Click `← LEVELS` (play screen) | Return to the level select screen |
+| Click `NEXT LEVEL` / `PLAY AGAIN` / `LEVELS` (after winning) | Go to the next level (or restart from level 1 after the last) / return to the level select screen |
 | `P` / `Space` (play screen) | Pause / resume |
-| `ESC` | Return to the home screen |
+| `ESC` | Play screen → level select · level select / how-to → home screen |
 
 ---
 
@@ -94,6 +102,7 @@ No installation. No compilation. Just:
 | 9 | Random, always-winnable levels (8) with stars, portals, blinking blocks and sliding bars | ✅ Done |
 | 10 | Synthesised sound (Web Audio): musical bounces, star chimes, portal whoosh, win fanfare, looping background song that gets faster and fuller each level, `M` to mute | ✅ Done |
 | 11 | Polish: particle bursts, screen shake on misses, fade transitions, pause (`P` / Space, auto-pauses when the window loses focus) | ✅ Done |
+| 12 | Level select screen: 8 cards with hand-drawn icons, best star rating per level saved in the browser, levels unlock one by one, laser loops around the cards | ✅ Done |
 
 ---
 
@@ -115,7 +124,7 @@ Capstone-Refract/
 | Segment intersection geometry | Beam–mirror and beam–tile collision |
 | Pointer events | Dragging mirrors and drawing tiles (mouse and touch) |
 | Pre-rendered offscreen canvas | Paper texture (performance) |
-| Vanilla JS state machine | `MENU` · `HOWTO` · `PLAYING` |
+| Vanilla JS state machine | `MENU` · `LEVELS` · `HOWTO` · `PLAYING` |
 
 ---
 
