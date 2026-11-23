@@ -59,6 +59,8 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - A level unlocks once the one before it is cleared; locked cards show a padlock
 - The bottom bar has `← MAIN MENU`, `TOTAL STARS: n/24` and a sound toggle
 - The win screen shows the stars you earned and a `LEVELS` button
+- **↺ RESET PROGRESS** (top right) clears all saved stars: click once, then click again within 3 seconds to confirm
+- Progress is stored only in your own browser (`localStorage`) — nothing is sent anywhere
 
 ### Controls
 
