@@ -334,8 +334,11 @@ function buildDoodles() {
 
 // ── LAYOUT (runs at start and on every window resize) ────────────────────────
 function layout() {
-  PLAY.x = 60;  PLAY.y = 48;
-  PLAY.w = W - 120;  PLAY.h = H - 96;
+  // The play field never grows past a set size (so a big monitor plays like a laptop); it is centred on the sheet.
+  PLAY.w = Math.min(W - 120, 1180);
+  PLAY.h = Math.min(H - 96, 640);
+  PLAY.x = (W - PLAY.w) / 2;
+  PLAY.y = Math.max(48, (H - PLAY.h) / 2 - 6);
   INT.x = PLAY.x + WALL_T;        INT.y = PLAY.y + WALL_T;
   INT.w = PLAY.w - WALL_T * 2;    INT.h = PLAY.h - WALL_T * 2;
   SOURCE.x = INT.x;
@@ -646,15 +649,17 @@ function rectsClash(a, b, mx, my) {
 }
 
 function speedName(v) {
-  return v < 1.7 ? 'SLOW' : v < 2.5 ? 'MEDIUM' : v < 3.3 ? 'FAST' : v < 4.0 ? 'VERY FAST' : 'INSANE';
+  return v < 2.1 ? 'SLOW' : v < 2.9 ? 'MEDIUM' : v < 3.6 ? 'FAST' : v < 4.1 ? 'VERY FAST' : 'INSANE';
 }
+/** Beam speed for level n: starts a little slow, speeds up every level */
+function levelSpeed(n) { return 1.8 + 0.35 * (n - 1); }
 
 /** What each level adds: 1 walls only · 2 stars · 3 portals · 4 blinking blocks · 5 sliding bars · 7 a second blinking block */
 function generateLevel(n) {
   const mx = 40 / INT.w, my = 40 / INT.h;      // ~40px clearance around the path
   const tw = 34 / INT.w, th = 34 / INT.h;      // stone thickness as a fraction
   const hb = 0.22;                             // height of sliding / blinking bars
-  const v  = 1.4 + 0.4 * (n - 1);              // starts slow, speeds up every level
+  const v  = levelSpeed(n);
   const spec = { v, speed: speedName(v), src: 0, hole: 0, walls: [], bars: [], stars: [], portals: [] };
 
   // 1. The hidden solution: straight shot, turn at x = a, turn again into the goal.
@@ -733,7 +738,7 @@ function generateLevel(n) {
   // 3b. One optional bonus star, off the planned path so it takes a detour to grab.
   //     (Placed before the decoy walls so they leave it clear.)
   for (let tries = 0; tries < 120; tries++) {
-    const x = rnd(0.18, 0.92), y = rnd(0.10, 0.90);
+    const x = n === 1 ? rnd(0.25, 0.75) : rnd(0.18, 0.92), y = rnd(0.10, 0.90);
     const sr = rectOf(x, y, x, y);
     const clear = tries < 80 ? 1.6 : 0.8;                 // relax the clearance if the screen is crowded
     if (reserved.some(q => rectsClash(sr, q, mx * clear, my * clear))) continue;
@@ -961,10 +966,11 @@ function beamMiss() {
   shot.sx = shot.x;  shot.sy = shot.y;
   shot.spark = 1;
   // random rest, so sliding / blinking blocks can't lock-step with the beam (longer random range when the level has any)
-  shot.wait  = levelSpec.bars.length ? 60 + Math.floor(Math.random() * 200) : 90 + Math.floor(Math.random() * 50);
+  shot.wait  = levelSpec.bars.length ? 40 + Math.floor(Math.random() * 110) : 45 + Math.floor(Math.random() * 35);
   play.misses++;
   sfx.miss();
   shake = 9;
+  play.missT = frame;
   burst(shot.x, shot.y, 22, C.accent, 3.5);
   if (play.misses >= MAX_MISSES) {                       // out of chances: the level is lost
     play.lost = true;  play.lostT = 0;
@@ -1162,7 +1168,7 @@ function clearTiles() {
 // ── WIN STATE ────────────────────────────────────────────────────────────────
 // The level is won when the beam reaches the goal hole. A beam that hits any
 // other part of a wall is a miss and simply fires again.
-const play = { won: false, lost: false, lostT: 0, misses: 0, total: 0, rating: 0, gotBonus: false, msg: '', msgT: 0 };   // total = misses over all finished levels
+const play = { won: false, lost: false, lostT: 0, misses: 0, total: 0, rating: 0, gotBonus: false, missT: -999, msg: '', msgT: 0 };   // total = misses over all finished levels
 
 // ── PROGRESS (saved in the browser) ──────────────────────────────────────────
 // best[n] = best star rating for level n (0 = not cleared yet).
@@ -1763,6 +1769,7 @@ function drawPlaying() {
   drawPlayMessage();
   const b = PLAY_MENU_BTN();
   drawBtn(b.x, b.y, b.w, b.h, '←  LEVELS', C.inkMid);
+  drawHearts();
   if (play.won) drawWin();
   else if (play.lost) drawLost();
   else if (paused) drawPause();
@@ -1822,6 +1829,40 @@ function drawWin() {
   const B = WIN_BTNS();
   drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, LEVEL.num === TOTAL_LEVELS ? '↻   PLAY AGAIN' : 'NEXT LEVEL   →', C.accent);
   drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '≡   LEVELS',     C.inkMid);
+}
+
+/** A heart outline centred on (x, y), s = half width */
+function heartPath(x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.9);
+  ctx.bezierCurveTo(x - s * 1.5, y - s * 0.1, x - s * 0.8, y - s * 1.1, x, y - s * 0.35);
+  ctx.bezierCurveTo(x + s * 0.8, y - s * 1.1, x + s * 1.5, y - s * 0.1, x, y + s * 0.9);
+  ctx.closePath();
+}
+
+/** The chances left, as big hearts in the top bar; the one just lost pops */
+function drawHearts() {
+  const left = Math.max(0, MAX_MISSES - play.misses), hx = PLAY.x + 160, hy = 24;
+  ctx.save();
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < MAX_MISSES; i++) {
+    const x = hx + i * 38;
+    ctx.lineWidth = 2;  ctx.strokeStyle = C.ink;
+    ctx.fillStyle = i < left ? C.accent : 'rgba(0,0,0,0.05)';
+    ctx.globalAlpha = i < left ? 1 : 0.45;
+    heartPath(x, hy, 12);  ctx.fill();  ctx.stroke();
+  }
+  const t = (frame - play.missT) / 28;
+  if (t >= 0 && t < 1 && play.misses > 0) {                       // the lost heart breaks away
+    ctx.globalAlpha = 1 - t;  ctx.strokeStyle = C.accent;  ctx.lineWidth = 2.5;
+    heartPath(hx + left * 38, hy - t * 14, 12 * (1 + t * 0.9));  ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.fillStyle = C.inkMid;  ctx.font = `15px 'Patrick Hand', cursive`;
+  ctx.textAlign = 'left';  ctx.textBaseline = 'middle';
+  ctx.fillText(`${left} chance${left === 1 ? '' : 's'} left`, hx + MAX_MISSES * 38 - 8, hy + 1);
+  ctx.restore();
 }
 
 /** Shown after the 3rd miss: tiles are gone, try the same level again or go back to the levels */
@@ -2103,12 +2144,12 @@ function drawHUD() {
 
   ctx.save();
   ctx.fillStyle    = C.inkMid;
-  ctx.font         = `13px 'Patrick Hand', cursive`;
+  ctx.font         = `16px 'Patrick Hand', cursive`;
   ctx.textBaseline = 'top';
 
   // Left: level
   ctx.textAlign = 'left';
-  ctx.fillText(`LEVEL  ${LEVEL.num}/${TOTAL_LEVELS}   ·   CHANCES: ${'●'.repeat(Math.max(0, MAX_MISSES - play.misses))}${'○'.repeat(Math.min(MAX_MISSES, play.misses))}` +
+  ctx.fillText(`LEVEL  ${LEVEL.num}/${TOTAL_LEVELS}` +
     (stars.length ? `   ·   STARS: ${stars.length - starsLeft()}/${stars.length}` : '') +
     (bonus ? `   ·   BONUS: ${bonus.got ? '★' : '☆'}` : ''), hx, hy);
 
@@ -2364,7 +2405,7 @@ function drawLevelCard(c, hov) {
   ctx.fillStyle = 'rgba(55, 95, 155, 0.9)';
   ctx.font = `13px 'Patrick Hand', cursive`;
   ctx.fillText(`LEVEL 0${c.n}`, x + 12, y + 30);
-  const sp = speedName(1.4 + 0.4 * (c.n - 1));
+  const sp = speedName(levelSpeed(c.n));
   ctx.font = `bold 11px 'Architects Daughter', cursive`;
   const sw = ctx.measureText(sp).width + 12;
   ctx.strokeStyle = open ? col : C.inkLight;  ctx.lineWidth = 1.4;
