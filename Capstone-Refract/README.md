@@ -64,6 +64,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 | Click `HOW TO PLAY` | Open the how-to-play screen |
 | Click `← MENU` (play screen) | Return to the home screen |
 | Click `NEXT LEVEL` / `PLAY AGAIN` / `MENU` (after winning) | Go to the next level (or restart from level 1 after the last) / return to the home screen |
+| `P` / `Space` (play screen) | Pause / resume |
 | `ESC` | Return to the home screen |
 
 ---
@@ -92,6 +93,7 @@ No installation. No compilation. Just:
 | 8 | 5 levels with a faster beam each level, NEXT LEVEL and ALL CLEAR screens | ✅ Done |
 | 9 | Random, always-winnable levels (8) with stars, portals, blinking blocks and sliding bars | ✅ Done |
 | 10 | Synthesised sound (Web Audio): musical bounces, star chimes, portal whoosh, win fanfare, looping background song that gets faster and fuller each level, `M` to mute | ✅ Done |
+| 11 | Polish: particle bursts, screen shake on misses, fade transitions, pause (`P` / Space, auto-pauses when the window loses focus) | ✅ Done |
 
 ---
 
