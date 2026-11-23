@@ -566,6 +566,7 @@ function resetBeam() {
 const obstacles = [];       // { kind, x, y, w, h, ... }
 const portals   = [];       // { a: {x, y}, b: {x, y}, r }
 const stars     = [];       // { x, y, got, flash }
+let   bonus     = null;     // optional bonus star { x, y, got, flash } — never blocks the goal, but earns a level star
 
 function starsLeft() { return stars.filter(s => !s.got).length; }
 
@@ -598,6 +599,8 @@ function buildExtras() {
   for (const s of levelSpec.stars) {
     stars.push({ x: INT.x + INT.w * s.x, y: INT.y + INT.h * s.y, got: false, flash: 0 });
   }
+  const b = levelSpec.bonus;
+  bonus = b ? { x: INT.x + INT.w * b.x, y: INT.y + INT.h * b.y, got: false, flash: 0 } : null;
 }
 
 /** Moves the sliding bars and switches the blinking blocks (called once per frame) */
@@ -727,6 +730,18 @@ function generateLevel(n) {
     }
   }
 
+  // 3b. One optional bonus star, off the planned path so it takes a detour to grab.
+  //     (Placed before the decoy walls so they leave it clear.)
+  for (let tries = 0; tries < 120; tries++) {
+    const x = rnd(0.18, 0.92), y = rnd(0.10, 0.90);
+    const sr = rectOf(x, y, x, y);
+    const clear = tries < 80 ? 1.6 : 0.8;                 // relax the clearance if the screen is crowded
+    if (reserved.some(q => rectsClash(sr, q, mx * clear, my * clear))) continue;
+    spec.bonus = { x, y };
+    reserved.push(sr);
+    break;
+  }
+
   // 4. Decoy stone walls anywhere that is clear.
   const nWalls = 2 + Math.floor(n / 2);
   for (let i = 0; i < nWalls; i++) {
@@ -841,6 +856,32 @@ function starPath(x, y, r) {
     ctx.lineTo(x + Math.cos(ang) * rad, y + Math.sin(ang) * rad);
   }
   ctx.closePath();
+}
+
+/** The optional bonus star: a blue star with a sparkle ring and a BONUS tag */
+function drawBonus() {
+  if (!bonus) return;
+  const b = bonus;
+  if (b.flash > 0) b.flash = Math.max(0, b.flash - 0.04);
+  ctx.save();
+  if (b.got) {
+    ctx.globalAlpha = 0.3;  ctx.strokeStyle = C.ink;  ctx.lineWidth = 1.2;
+    starPath(b.x, b.y, 12);  ctx.stroke();
+    if (b.flash > 0) {
+      ctx.globalAlpha = b.flash;  ctx.strokeStyle = '#4FB3D9';  ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(b.x, b.y, 12 + (1 - b.flash) * 30, 0, Math.PI * 2); ctx.stroke();
+    }
+  } else {
+    const r = 14 + Math.sin(frame * 0.12) * 1.8;
+    ctx.strokeStyle = 'rgba(79, 179, 217, 0.55)';  ctx.lineWidth = 1.5;  ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.arc(b.x, b.y, r + 9 + Math.sin(frame * 0.07) * 2, 0, Math.PI * 2); ctx.stroke();  ctx.setLineDash([]);
+    ctx.fillStyle = '#7FD0F0';  ctx.strokeStyle = C.ink;  ctx.lineWidth = 1.8;  ctx.lineJoin = 'round';
+    starPath(b.x, b.y, r);  ctx.fill();  ctx.stroke();
+    ctx.fillStyle = '#2C7FA3';  ctx.font = `bold 11px 'Architects Daughter', cursive`;
+    ctx.textAlign = 'center';  ctx.textBaseline = 'alphabetic';
+    ctx.fillText('BONUS', b.x, b.y + r + 22);
+  }
+  ctx.restore();
 }
 
 function drawStars() {
@@ -992,6 +1033,13 @@ function updateShot() {
     if (!st.got && Math.hypot(shot.x - st.x, shot.y - st.y) < 18) { st.got = true; st.flash = 1; burst(st.x, st.y, 18, '#E0A800', 3.5, 3.5); sfx.star(stars.filter(s => s.got).length - 1); }
   }
 
+  // Bonus star (optional)
+  if (bonus && !bonus.got && Math.hypot(shot.x - bonus.x, shot.y - bonus.y) < 20) {
+    bonus.got = true;  bonus.flash = 1;
+    burst(bonus.x, bonus.y, 22, '#4FB3D9', 3.8, 3.5);
+    sfx.star(3);
+  }
+
   // Goal hole (only opens once every star is collected)
   if (Math.hypot(shot.x - HOLE.x, shot.y - HOLE.y) < HOLE.r) {
     if (starsLeft() > 0) {
@@ -1114,11 +1162,11 @@ function clearTiles() {
 // ── WIN STATE ────────────────────────────────────────────────────────────────
 // The level is won when the beam reaches the goal hole. A beam that hits any
 // other part of a wall is a miss and simply fires again.
-const play = { won: false, lost: false, lostT: 0, misses: 0, total: 0, rating: 0, msg: '', msgT: 0 };   // total = misses over all finished levels
+const play = { won: false, lost: false, lostT: 0, misses: 0, total: 0, rating: 0, gotBonus: false, msg: '', msgT: 0 };   // total = misses over all finished levels
 
 // ── PROGRESS (saved in the browser) ──────────────────────────────────────────
-// best[n] = best star rating for level n (0 = not cleared yet). 3 stars = no
-// miss, 1 star = cleared after 2 misses (a 3rd miss loses the level).
+// best[n] = best star rating for level n (0 = not cleared yet).
+// 1 star for clearing the level, +1 for the optional bonus star, +1 for no misses.
 const SAVE_KEY = 'refract.progress';
 const progress = { best: new Array(TOTAL_LEVELS + 1).fill(0) };
 
@@ -1133,13 +1181,14 @@ function saveProgress() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (e) { /* ignore */ }
 }
 
-function ratingFor(misses) { return misses === 0 ? 3 : misses === 1 ? 2 : 1; }
+function ratingFor(misses, gotBonus) { return 1 + (gotBonus ? 1 : 0) + (misses === 0 ? 1 : 0); }
 function isUnlocked(n)     { return n === 1 || progress.best[n - 1] > 0; }
 function totalStars()      { return progress.best.reduce((a, b) => a + b, 0); }
 
 /** Remember the result of the level just won */
 function recordWin() {
-  const r = ratingFor(play.misses);
+  const r = ratingFor(play.misses, bonus && bonus.got);
+  play.gotBonus = !!(bonus && bonus.got);
   play.rating = r;
   if (r > progress.best[LEVEL.num]) { progress.best[LEVEL.num] = r; saveProgress(); }
 }
@@ -1151,6 +1200,7 @@ function resetPlay() {
   resetShot();
   play.won    = false;
   play.lost   = false;
+  play.gotBonus = false;
   play.lostT  = 0;
   play.misses = 0;
   play.msgT   = 0;
@@ -1700,6 +1750,7 @@ function drawPlaying() {
   drawGoalLock();
   drawPortals();
   drawStars();
+  drawBonus();
   drawObstacles();
   if (!play.won && !paused) updateObstacles();
   if (!paused) { updateShot(); updateFX(); }
@@ -1751,7 +1802,8 @@ function drawWin() {
   if (LEVEL.num === TOTAL_LEVELS) {
     ctx.fillText(`All ${TOTAL_LEVELS} levels cleared · ${play.total} miss${play.total === 1 ? '' : 'es'} in total`, W/2, py + 135);
   } else {
-    ctx.fillText(m === 0 ? `Level ${LEVEL.num} — perfect, first shot!` : `Level ${LEVEL.num} — solved after ${m} miss${m === 1 ? '' : 'es'}`, W/2, py + 135);
+    ctx.font = `20px 'Patrick Hand', cursive`;
+    ctx.fillText(`Level ${LEVEL.num}  ·  ${m === 0 ? 'no misses' : m + ' miss' + (m === 1 ? '' : 'es')}  ·  bonus star ${play.gotBonus ? 'collected!' : 'missed'}`, W/2, py + 135);
   }
   ctx.restore();
 
@@ -2056,7 +2108,8 @@ function drawHUD() {
   // Left: level
   ctx.textAlign = 'left';
   ctx.fillText(`LEVEL  ${LEVEL.num}/${TOTAL_LEVELS}   ·   CHANCES: ${'●'.repeat(Math.max(0, MAX_MISSES - play.misses))}${'○'.repeat(Math.min(MAX_MISSES, play.misses))}` +
-    (stars.length ? `   ·   STARS: ${stars.length - starsLeft()}/${stars.length}` : ''), hx, hy);
+    (stars.length ? `   ·   STARS: ${stars.length - starsLeft()}/${stars.length}` : '') +
+    (bonus ? `   ·   BONUS: ${bonus.got ? '★' : '☆'}` : ''), hx, hy);
 
   // Centre: speed
   ctx.textAlign = 'center';
@@ -2452,7 +2505,7 @@ function drawLevels() {
   ctx.restore();
   ctx.save();
   ctx.textAlign = 'center';  ctx.fillStyle = C.inkMid;  ctx.font = `19px 'Patrick Hand', cursive`;
-  ctx.fillText('pick a sheet  ·  clear a level to unlock the next  ·  3 stars = no misses', W / 2, ty + th + 28);
+  ctx.fillText('pick a sheet  ·  clear a level to unlock the next  ·  ★ clear  ★ bonus star  ★ no misses', W / 2, ty + th + 28);
   ctx.restore();
   wavyLine(W / 2 - 150, W / 2 + 150, ty + th + 38, 3, C.accent);
 
