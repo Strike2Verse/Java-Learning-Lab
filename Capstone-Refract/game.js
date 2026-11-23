@@ -1695,7 +1695,7 @@ function drawPlaying() {
   drawHUD();
   drawPlayMessage();
   const b = PLAY_MENU_BTN();
-  drawBtn(b.x, b.y, b.w, b.h, '←  MENU', C.inkMid);
+  drawBtn(b.x, b.y, b.w, b.h, '←  LEVELS', C.inkMid);
   if (play.won) drawWin();
   else if (paused) drawPause();
 }
@@ -1752,7 +1752,7 @@ function drawWin() {
 
   const B = WIN_BTNS();
   drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, LEVEL.num === TOTAL_LEVELS ? '↻   PLAY AGAIN' : 'NEXT LEVEL   →', C.accent);
-  drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '←   MENU',       C.inkMid);
+  drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '≡   LEVELS',     C.inkMid);
 }
 
 /** Full play area: interior fill + hatched walls + border */
@@ -2017,7 +2017,7 @@ function drawHUD() {
   // Right: tiles in use + length limit + ESC tip
   ctx.textAlign = 'right';
   ctx.fillStyle = C.inkMid;
-  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   P = pause   ·   ESC = menu   ·   M = ${sfx.isMuted() ? 'sound off' : 'sound on'}`, hx + hw, hy);
+  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   P = pause   ·   ESC = levels   ·   M = ${sfx.isMuted() ? 'sound off' : 'sound on'}`, hx + hw, hy);
   ctx.restore();
 }
 
@@ -2085,6 +2085,270 @@ function drawBlueprintAnnotations() {
   ctx.restore();
 }
 
+// ── LEVEL SELECT SCREEN ──────────────────────────────────────────────────────
+// 8 cards on a drafting sheet. A level opens once the one before it is cleared;
+// each card shows the best star rating. A laser loops around the cards.
+const LEVEL_INFO = [
+  null,
+  { name: 'FIRST REFLECTION' },
+  { name: 'STELLAR PATH' },
+  { name: 'PORTAL DRIFT' },
+  { name: 'BLINK CHRONO' },
+  { name: 'SLIDING PISTON' },
+  { name: 'RUSH HOUR' },
+  { name: 'DOUBLE BLINK' },
+  { name: 'MASTER BLUEPRINT' },
+];
+const LS = { hover: 0, note: '', noteT: 0, d: 0 };    // hovered card, "locked" note, beam distance
+
+function levelRects() {
+  const gap  = 26;
+  const gw   = Math.min(W - 100, 1040);
+  const cw   = (gw - gap * 3) / 4;
+  const top  = 150, bottom = H - 96;
+  const ch   = Math.max(130, Math.min(cw * 0.92, (bottom - top - gap) / 2));
+  const gx   = (W - gw) / 2;
+  const cards = [];
+  for (let i = 0; i < TOTAL_LEVELS; i++) {
+    cards.push({ n: i + 1, x: gx + (i % 4) * (cw + gap), y: top + Math.floor(i / 4) * (ch + gap), w: cw, h: ch });
+  }
+  const by = H - 70;
+  return {
+    cards, gx, gw, gap, top, ch,
+    back:  { x: gx,            y: by, w: 200, h: 46 },
+    sound: { x: gx + gw - 170, y: by, w: 170, h: 46 },
+    stars: { x: gx + 220,      y: by, w: gw - 220 - 190, h: 46 },
+  };
+}
+
+/** Little hand-drawn picture of what each level is about */
+function drawLevelIcon(n, cx, cy, s) {
+  ctx.save();
+  ctx.lineCap = 'round';  ctx.lineJoin = 'round';
+  ctx.strokeStyle = C.ink;  ctx.lineWidth = 2;
+  const t = frame * 0.04;
+  if (n === 1) {                                   // mirror + beam
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.2, cy + s * 0.5); ctx.lineTo(cx + s * 0.2, cy - s * 0.5); ctx.stroke();
+    ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(cx, cy + s * 0.5); ctx.lineTo(cx - s * 0.3, cy + s * 0.62); ctx.moveTo(cx, cy + s * 0.5); ctx.lineTo(cx + s * 0.3, cy + s * 0.62); ctx.stroke();
+    ctx.strokeStyle = C.accent;  ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(cx - s * 1.0, cy + s * 0.1); ctx.lineTo(cx - s * 0.05, cy + s * 0.1); ctx.lineTo(cx + s * 0.05, cy - s * 0.9); ctx.stroke();
+  } else if (n === 2) {                            // stars
+    ctx.fillStyle = 'rgba(235, 185, 60, 0.95)';  ctx.lineWidth = 1.8;
+    starPath(cx, cy, s * 0.55);                     ctx.fill(); ctx.stroke();
+    starPath(cx - s * 0.8, cy - s * 0.25, s * 0.3); ctx.fill(); ctx.stroke();
+    starPath(cx + s * 0.8, cy + s * 0.2, s * 0.3);  ctx.fill(); ctx.stroke();
+  } else if (n === 3) {                            // portals
+    for (const [px, col] of [[cx - s * 0.65, '#2A9DB8'], [cx + s * 0.65, '#7A52C7']]) {
+      ctx.strokeStyle = col;
+      for (let k = 0; k < 3; k++) {
+        ctx.lineWidth = 2.4 - k * 0.6;  ctx.globalAlpha = 1 - k * 0.25;
+        ctx.beginPath(); ctx.ellipse(px, cy, s * (0.2 - k * 0.04) + Math.sin(t * 2 + k) * 1.2, s * (0.5 - k * 0.1), 0, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  } else if (n === 4) {                            // clock
+    ctx.beginPath(); ctx.arc(cx, cy, s * 0.6, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(t * 3) * s * 0.42, cy + Math.sin(t * 3) * s * 0.42); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(t * 0.5) * s * 0.28, cy + Math.sin(t * 0.5) * s * 0.28); ctx.stroke();
+  } else if (n === 5) {                            // piston: bar slides along a track
+    const o = Math.sin(t * 1.5) * s * 0.3;
+    ctx.setLineDash([3, 4]);  ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.8, cy); ctx.lineTo(cx + s * 0.8, cy); ctx.stroke();  ctx.setLineDash([]);
+    ctx.lineWidth = 2;  ctx.fillStyle = 'rgba(62, 111, 176, 0.35)';
+    ctx.fillRect(cx - s * 0.2 + o, cy - s * 0.5, s * 0.4, s);  ctx.strokeRect(cx - s * 0.2 + o, cy - s * 0.5, s * 0.4, s);
+  } else if (n === 6) {                            // bar + block
+    const o = Math.sin(t * 2) * s * 0.3;
+    ctx.fillStyle = 'rgba(62, 111, 176, 0.35)';
+    ctx.fillRect(cx - s * 0.7, cy - s * 0.4 + o, s * 0.35, s * 0.8);  ctx.strokeRect(cx - s * 0.7, cy - s * 0.4 + o, s * 0.35, s * 0.8);
+    ctx.setLineDash(Math.sin(t * 3) > 0 ? [] : [4, 3]);  ctx.strokeStyle = C.accent;  ctx.fillStyle = 'rgba(192, 57, 43, 0.25)';
+    ctx.fillRect(cx + s * 0.25, cy - s * 0.4, s * 0.45, s * 0.8);  ctx.strokeRect(cx + s * 0.25, cy - s * 0.4, s * 0.45, s * 0.8);
+  } else if (n === 7) {                            // two blinking blocks, taking turns
+    for (let k = 0; k < 2; k++) {
+      const on = Math.sin(t * 3 + k * Math.PI) > 0;
+      ctx.setLineDash(on ? [] : [4, 3]);  ctx.strokeStyle = C.accent;  ctx.fillStyle = on ? 'rgba(192, 57, 43, 0.3)' : 'rgba(192, 57, 43, 0.05)';
+      const bx = cx + (k ? s * 0.12 : -s * 0.68);
+      ctx.fillRect(bx, cy - s * 0.4, s * 0.56, s * 0.8);  ctx.strokeRect(bx, cy - s * 0.4, s * 0.56, s * 0.8);
+    }
+  } else {                                         // master blueprint: a bit of everything
+    ctx.strokeRect(cx - s * 0.9, cy - s * 0.6, s * 1.8, s * 1.2);
+    ctx.lineWidth = 1;  ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.9, cy); ctx.lineTo(cx + s * 0.9, cy); ctx.moveTo(cx, cy - s * 0.6); ctx.lineTo(cx, cy + s * 0.6); ctx.stroke();
+    ctx.globalAlpha = 1;  ctx.lineWidth = 1.6;
+    ctx.fillStyle = 'rgba(235, 185, 60, 0.95)';  starPath(cx - s * 0.45, cy - s * 0.3, s * 0.2);  ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#7A52C7';  ctx.beginPath(); ctx.ellipse(cx + s * 0.45, cy - s * 0.3, s * 0.1, s * 0.22, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = C.accent;   ctx.strokeRect(cx - s * 0.6, cy + s * 0.12, s * 0.3, s * 0.34);
+    ctx.fillStyle = 'rgba(62, 111, 176, 0.4)';  ctx.fillRect(cx + s * 0.25, cy + s * 0.1, s * 0.4, s * 0.12);
+  }
+  ctx.restore();
+}
+
+function drawPadlock(x, y, s) {
+  ctx.save();
+  ctx.strokeStyle = C.inkMid;  ctx.fillStyle = 'rgba(255,255,255,0.9)';  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(x, y - s * 0.25, s * 0.3, Math.PI, 0); ctx.stroke();
+  ctx.fillRect(x - s * 0.45, y - s * 0.2, s * 0.9, s * 0.7);  ctx.strokeRect(x - s * 0.45, y - s * 0.2, s * 0.9, s * 0.7);
+  ctx.fillStyle = C.inkMid;
+  ctx.beginPath(); ctx.arc(x, y + s * 0.08, s * 0.08, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(x - 1.5, y + s * 0.08, 3, s * 0.2);
+  ctx.restore();
+}
+
+function drawLevelCard(c, hov) {
+  const open = isUnlocked(c.n), lift = hov && open ? -5 : 0;
+  const x = c.x, y = c.y + lift, w = c.w, h = c.h;
+  const best = progress.best[c.n], info = LEVEL_INFO[c.n];
+
+  // Paper card with shadow
+  ctx.save();
+  ctx.fillStyle = 'rgba(0,0,0,0.10)';  ctx.fillRect(x + 5, y + 5 - lift, w, h);
+  ctx.fillStyle = open ? 'rgba(255,255,255,0.92)' : 'rgba(236,231,220,0.85)';
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
+  sketchRect(x, y, w, h, hov && open ? 3 : 2, open ? (hov ? C.accent : C.ink) : C.inkLight);
+
+  // Header: card tag + title
+  ctx.save();
+  ctx.globalAlpha = open ? 1 : 0.55;
+  ctx.textAlign = 'left';  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = 'rgba(55, 95, 155, 0.8)';
+  ctx.font = `12px 'Patrick Hand', cursive`;
+  ctx.fillText(`CARD ${c.n}`, x + 10, y + 16);
+  ctx.fillStyle = C.ink;
+  ctx.font = `bold 15px 'Architects Daughter', cursive`;
+  ctx.fillText(`LEVEL 0${c.n} // ${info.name}`, x + 10, y + 36, w - 20);
+  ctx.strokeStyle = 'rgba(55, 95, 155, 0.5)';  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x + 8, y + 44); ctx.lineTo(x + w - 8, y + 44); ctx.stroke();
+  ctx.restore();
+
+  // Picture (clipped to its area)
+  const ay = y + 48, ah = h - 48 - 46;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(x + 4, ay, w - 8, ah); ctx.clip();
+  ctx.globalAlpha = open ? 1 : 0.28;
+  drawLevelIcon(c.n, x + w / 2, ay + ah / 2, Math.min(ah * 0.42, w * 0.2));
+  ctx.restore();
+  if (!open) drawPadlock(x + w / 2, ay + ah / 2, Math.min(ah * 0.55, 46));
+
+  // Footer: stars + launch button
+  const fy = y + h - 36;
+  for (let i = 0; i < 3; i++) {
+    ctx.save();
+    ctx.lineJoin = 'round';  ctx.lineWidth = 1.5;  ctx.strokeStyle = open ? C.ink : C.inkLight;
+    ctx.fillStyle = i < best ? 'rgba(235, 185, 60, 0.95)' : 'rgba(0,0,0,0.04)';
+    starPath(x + 20 + i * 24, fy + 14, 9);
+    ctx.fill();  ctx.stroke();
+    ctx.restore();
+  }
+  if (open) {
+    const bx = x + w - 96, by = fy, bw = 86, bh = 28;
+    ctx.save();
+    ctx.fillStyle = hov ? C.ink : C.accent;  ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#fff';  ctx.font = `bold 14px 'Architects Daughter', cursive`;
+    ctx.textAlign = 'center';  ctx.textBaseline = 'middle';
+    ctx.fillText(best ? '↻ REPLAY' : '▶ LAUNCH', bx + bw / 2, by + bh / 2 + 1);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.fillStyle = C.inkLight;  ctx.font = `13px 'Patrick Hand', cursive`;
+    ctx.textAlign = 'right';  ctx.textBaseline = 'middle';
+    ctx.fillText(`clear level ${c.n - 1} first`, x + w - 10, fy + 14);
+    ctx.restore();
+  }
+}
+
+/** A laser loops around the grid, bouncing off a small tile at each corner */
+function drawLevelBeam(R) {
+  const m = 20;
+  const x1 = R.gx - m, x2 = R.gx + R.gw + m, y1 = R.top - m, y2 = R.top + 2 * R.ch + R.gap + m;
+  const pts = [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]];
+  const segs = [];  let total = 0;
+  for (let i = 0; i < 4; i++) { const l = Math.hypot(pts[i+1][0] - pts[i][0], pts[i+1][1] - pts[i][1]); segs.push(l); total += l; }
+  const at = d => {
+    d = ((d % total) + total) % total;
+    for (let i = 0; i < 4; i++) {
+      if (d <= segs[i]) { const f = d / segs[i]; return [pts[i][0] + (pts[i+1][0] - pts[i][0]) * f, pts[i][1] + (pts[i+1][1] - pts[i][1]) * f]; }
+      d -= segs[i];
+    }
+    return pts[0];
+  };
+  LS.d += 4.2;
+  const tail = 220;
+
+  ctx.save();
+  // Faint guide path
+  ctx.strokeStyle = 'rgba(90, 130, 200, 0.22)';  ctx.lineWidth = 1;  ctx.setLineDash([4, 6]);
+  ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);  ctx.setLineDash([]);
+  // Corner tiles: "/" at top-left and bottom-right, "\" at top-right and bottom-left
+  ctx.strokeStyle = C.ink;  ctx.lineWidth = 3;  ctx.lineCap = 'round';
+  pts.slice(0, 4).forEach(([px, py], i) => {
+    const dir = (i === 0 || i === 2) ? -1 : 1;
+    ctx.beginPath(); ctx.moveTo(px - 9, py - 9 * dir); ctx.lineTo(px + 9, py + 9 * dir); ctx.stroke();
+  });
+  // Beam trail
+  ctx.lineWidth = 3;
+  for (let k = 0; k < tail; k += 6) {
+    const [ax, ay] = at(LS.d - k), [bx, by] = at(LS.d - k - 6);
+    if (Math.hypot(ax - bx, ay - by) > 12) continue;       // don't draw across a corner jump
+    ctx.strokeStyle = `rgba(192, 57, 43, ${(1 - k / tail) * 0.85})`;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+  const [hx, hy] = at(LS.d);
+  const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, 16);
+  g.addColorStop(0, 'rgba(255, 190, 120, 0.95)');  g.addColorStop(0.5, 'rgba(220, 80, 40, 0.5)');  g.addColorStop(1, 'rgba(192, 57, 43, 0)');
+  ctx.fillStyle = g;  ctx.beginPath(); ctx.arc(hx, hy, 16, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawLevels() {
+  const R = levelRects();
+  drawRulers();
+  drawDoodles();
+
+  // Title block
+  const tw = 420, th = 78, tx = W / 2 - tw / 2, ty = 38;
+  ctx.save();  ctx.fillStyle = 'rgba(255,255,255,0.88)';  ctx.fillRect(tx, ty, tw, th);  ctx.restore();
+  sketchRect(tx, ty, tw, th, 2.5, C.ink);
+  ctx.save();
+  ctx.textAlign = 'center';  ctx.fillStyle = C.ink;
+  ctx.font = `bold 34px 'Architects Daughter', cursive`;
+  ctx.fillText('REFRACT // STAGE SELECT', W / 2, ty + 38);
+  ctx.strokeStyle = C.inkMid;  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(tx + 8, ty + 48); ctx.lineTo(tx + tw - 8, ty + 48); ctx.stroke();
+  ctx.fillStyle = C.inkMid;  ctx.font = `16px 'Patrick Hand', cursive`;
+  ctx.textAlign = 'left';   ctx.fillText('SHEET NO.  02 - LEVEL ARCHIVES', tx + 12, ty + 68);
+  ctx.textAlign = 'right';  ctx.fillText('SCALE 1:1', tx + tw - 12, ty + 68);
+  ctx.restore();
+
+  drawLevelBeam(R);
+
+  LS.hover = 0;
+  for (const c of R.cards) if (inRect(mouse, c)) LS.hover = c.n;
+  for (const c of R.cards) drawLevelCard(c, LS.hover === c.n);
+
+  // Bottom bar
+  drawBtn(R.back.x, R.back.y, R.back.w, R.back.h, '←   MAIN MENU', C.inkMid);
+  drawBtn(R.sound.x, R.sound.y, R.sound.w, R.sound.h, sfx.isMuted() ? '♪  SOUND OFF' : '♪  SOUND ON', C.inkMid);
+  const sb = R.stars;
+  ctx.save();  ctx.fillStyle = 'rgba(255,255,255,0.82)';  ctx.fillRect(sb.x, sb.y, sb.w, sb.h);  ctx.restore();
+  sketchRect(sb.x, sb.y, sb.w, sb.h, 2, C.ink);
+  ctx.save();
+  ctx.textAlign = 'center';  ctx.textBaseline = 'middle';  ctx.fillStyle = C.ink;
+  ctx.font = `bold 20px 'Architects Daughter', cursive`;
+  ctx.fillText(`★  TOTAL STARS: ${totalStars()}/${TOTAL_LEVELS * 3}`, sb.x + sb.w / 2, sb.y + sb.h / 2 + 1);
+  ctx.restore();
+
+  // "locked" note
+  if (LS.noteT > 0) {
+    LS.noteT--;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, LS.noteT / 30);
+    ctx.textAlign = 'center';  ctx.fillStyle = C.accent;  ctx.font = `bold 22px 'Patrick Hand', cursive`;
+    ctx.fillText(LS.note, W / 2, H - 84);
+    ctx.restore();
+  }
+}
+
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 function loop() {
   frame++;
@@ -2105,6 +2369,8 @@ function loop() {
     drawRulers();
     drawDoodles();
     drawHowTo();
+  } else if (state === 'LEVELS') {
+    drawLevels();
   } else if (state === 'PLAYING') {
     drawDoodles();
     drawPlaying();
@@ -2124,6 +2390,9 @@ function loop() {
     else if (inRect(mouse, R.play) || inRect(mouse, R.how)) cur = 'pointer';
   } else if (state === 'HOWTO') {
     if (inRect(mouse, HOWTO_BACK())) cur = 'pointer';
+  } else if (state === 'LEVELS') {
+    const R = levelRects();
+    if (inRect(mouse, R.back) || inRect(mouse, R.sound) || (LS.hover && isUnlocked(LS.hover))) cur = 'pointer';
   }
   drawFade();
   canvas.style.cursor = cur;
@@ -2178,19 +2447,27 @@ canvas.addEventListener('click', e => {
   const p = toCanvas(e);
   if (state === 'MENU') {
     const R = menuRects();
-    if (inRect(p, R.play)) { sfx.click(); startGame(); goTo('PLAYING'); }
+    if (inRect(p, R.play)) { sfx.click(); goTo('LEVELS'); }
     else if (inRect(p, R.how)) { sfx.click(); goTo('HOWTO'); }
   } else if (state === 'HOWTO') {
     if (inRect(p, HOWTO_BACK())) { sfx.click(); goTo('MENU'); }
+  } else if (state === 'LEVELS') {
+    const R = levelRects();
+    if (inRect(p, R.back)) { sfx.click(); goTo('MENU'); }
+    else if (inRect(p, R.sound)) sfx.toggle();
+    else for (const c of R.cards) if (inRect(p, c)) {
+      if (isUnlocked(c.n)) { sfx.click(); startGame(c.n); goTo('PLAYING'); }
+      else { LS.note = `Clear level ${c.n - 1} first!`; LS.noteT = 120; sfx.denied(); }
+    }
   } else if (state === 'PLAYING') {
     if (paused) { paused = false; return; }
     if (play.won) {
       const B = WIN_BTNS();
       if (inRect(p, B.again)) { sfx.click(); if (LEVEL.num === TOTAL_LEVELS) startGame(); else nextLevel(); }
-      else if (inRect(p, B.menu)) { sfx.click(); goTo('MENU'); }
+      else if (inRect(p, B.menu)) { sfx.click(); goTo('LEVELS'); }
     } else if (inRect(p, PLAY_MENU_BTN())) {
       sfx.click();
-      goTo('MENU');
+      goTo('LEVELS');
     }
   }
 });
@@ -2199,7 +2476,7 @@ document.addEventListener('keydown', e => {
   sfx.unlock();
   if (e.key === 'm' || e.key === 'M') sfx.toggle();
   if ((e.key === 'p' || e.key === 'P' || e.key === ' ') && state === 'PLAYING' && !play.won) { paused = !paused; drawing = null; e.preventDefault(); }
-  if (e.key === 'Escape' && state !== 'MENU') { drawing = null; goTo('MENU'); }
+  if (e.key === 'Escape' && state !== 'MENU') { drawing = null; goTo(state === 'PLAYING' ? 'LEVELS' : 'MENU'); }
 });
 
 window.addEventListener('blur', () => { if (state === 'PLAYING' && !play.won) { paused = true; drawing = null; } });
