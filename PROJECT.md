@@ -26,6 +26,6 @@ A laser fires from the left wall and keeps moving — you can't stop it, you can
 
 **Tech:** HTML5 Canvas · Vanilla JavaScript · Vector Physics · Real-time Rendering
 
-**Status:** 🟡 In Progress — Phase 11 complete (8 random levels, synthesised sound and music, particle effects, screen shake, pause)
+**Status:** 🟡 In Progress — Phase 12 complete (8 random levels, synthesised sound and music, particle effects, pause, level select with saved star ratings)
 
 📁 [`Capstone-Refract/`](Capstone-Refract/) — [Full details →](Capstone-Refract/README.md)
