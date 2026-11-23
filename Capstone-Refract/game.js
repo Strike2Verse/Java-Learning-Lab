@@ -922,6 +922,8 @@ function beamMiss() {
   shot.wait  = levelSpec.bars.length ? 60 + Math.floor(Math.random() * 200) : 90 + Math.floor(Math.random() * 50);
   play.misses++;
   sfx.miss();
+  shake = 9;
+  burst(shot.x, shot.y, 22, C.accent, 3.5);
 }
 
 /** If the beam is inside a portal, move it to the other end (same direction) */
@@ -932,6 +934,8 @@ function portalJump() {
         shot.x = to.x;  shot.y = to.y;
         shot.trail = [];                                  // no line across the screen
         sfx.portal();
+        burst(from.x, from.y, 12, '#3E6FB0', 2.5);
+        burst(to.x, to.y, 12, '#3E6FB0', 2.5);
         shot.pcd = Math.ceil(2 * p.r / LEVEL.v) + 4;      // ignore portals until it has left this one
         return;
       }
@@ -959,6 +963,7 @@ function updateShot() {
     if (segmentIntersect(px, py, nx, ny, t.x1, t.y1, t.x2, t.y2)) {
       reflectOff(t, shot);
       sfx.bounce(shot.bn++);
+      burst(px, py, 6, C.ink, 2, 2);
       t.cd = 8;                              // stops double-bounce on the same tile
       nx = px + shot.dx;  ny = py + shot.dy;
     }
@@ -971,7 +976,7 @@ function updateShot() {
 
   // Stars
   for (const st of stars) {
-    if (!st.got && Math.hypot(shot.x - st.x, shot.y - st.y) < 18) { st.got = true; st.flash = 1; sfx.star(stars.filter(s => s.got).length - 1); }
+    if (!st.got && Math.hypot(shot.x - st.x, shot.y - st.y) < 18) { st.got = true; st.flash = 1; burst(st.x, st.y, 18, '#E0A800', 3.5, 3.5); sfx.star(stars.filter(s => s.got).length - 1); }
   }
 
   // Goal hole (only opens once every star is collected)
@@ -988,6 +993,7 @@ function updateShot() {
     shot.spark = 1;
     play.won = true;
     play.total += play.misses;
+    for (const c of [C.accent, '#E0A800', '#3E6FB0']) burst(HOLE.x, HOLE.y, 30, c, 6, 4);
     sfx.win(LEVEL.num === TOTAL_LEVELS);
     return;
   }
@@ -1017,6 +1023,67 @@ function drawShot() {
     ctx.fillStyle = sg;
     ctx.beginPath(); ctx.arc(shot.sx, shot.sy, r, 0, Math.PI * 2); ctx.fill();
   }
+}
+
+// ── POLISH: PARTICLES, SCREEN SHAKE, FADE, PAUSE ─────────────────────────────
+const particles = [];       // { x, y, vx, vy, life, max, col, size }
+let   shake  = 0;           // screen-shake strength, decays every frame
+let   fade   = 0;           // 1 → 0 paper-coloured overlay after a screen change
+let   paused = false;
+
+/** Burst of n sparks from a point */
+function burst(x, y, n, col, speed = 3, size = 3) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = speed * (0.3 + Math.random() * 0.7);
+    const life = 25 + Math.random() * 25;
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life, max: life, col, size: size * (0.6 + Math.random() * 0.8) });
+  }
+}
+
+/** Change screen with a soft fade-in */
+function goTo(s) { state = s; fade = 1; paused = false; particles.length = 0; shake = 0; }
+
+function updateFX() {
+  shake = Math.max(0, shake - 0.6);
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;  p.y += p.vy;  p.vx *= 0.96;  p.vy = p.vy * 0.96 + 0.05;
+    if (--p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  ctx.save();
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / p.max);
+    ctx.fillStyle = p.col;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.4 + 0.6 * p.life / p.max), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawFade() {
+  if (fade <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = fade;
+  ctx.fillStyle = '#F6F1E9';
+  ctx.fillRect(0, 0, W, H);
+  ctx.restore();
+  fade = Math.max(0, fade - 0.04);
+}
+
+function drawPause() {
+  ctx.save();
+  ctx.fillStyle = 'rgba(246, 241, 233, 0.75)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.ink;
+  ctx.font = `bold 72px 'Caveat', cursive`;
+  ctx.fillText('PAUSED', W/2, H/2 - 10);
+  ctx.fillStyle = C.inkMid;
+  ctx.font = `22px 'Patrick Hand', cursive`;
+  ctx.fillText('press P, Space or click to continue', W/2, H/2 + 30);
+  ctx.restore();
 }
 
 // ── PLAYER TILES ─────────────────────────────────────────────────────────────
@@ -1061,12 +1128,14 @@ function startGame() {
   play.total = 0;
   levelSpec  = generateLevel(1);
   applyLevel();
+  fade = 1;  particles.length = 0;
 }
 
 function nextLevel() {
   LEVEL.num++;
   levelSpec = generateLevel(LEVEL.num);
   applyLevel();
+  fade = 1;  particles.length = 0;  paused = false;
 }
 
 /** End point for the tile being drawn: kept inside the play area and within the length limit */
@@ -1578,6 +1647,8 @@ function drawCross(x, y, size) {
 const PLAY_MENU_BTN = () => ({ x: PLAY.x, y: 8, w: 120, h: 32 });
 
 function drawPlaying() {
+  ctx.save();
+  if (shake > 0) ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
   drawPlayArea();
   drawSource();
   drawHole();
@@ -1585,15 +1656,18 @@ function drawPlaying() {
   drawPortals();
   drawStars();
   drawObstacles();
-  if (!play.won) updateObstacles();
-  updateShot();
+  if (!play.won && !paused) updateObstacles();
+  if (!paused) { updateShot(); updateFX(); }
   drawTiles();
   drawShot();
+  drawParticles();
+  ctx.restore();
   drawHUD();
   drawPlayMessage();
   const b = PLAY_MENU_BTN();
   drawBtn(b.x, b.y, b.w, b.h, '←  MENU', C.inkMid);
   if (play.won) drawWin();
+  else if (paused) drawPause();
 }
 
 // ── WIN SCREEN ───────────────────────────────────────────────────────────────
@@ -1902,7 +1976,7 @@ function drawHUD() {
   // Right: tiles in use + length limit + ESC tip
   ctx.textAlign = 'right';
   ctx.fillStyle = C.inkMid;
-  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   ESC = menu   ·   M = ${sfx.isMuted() ? 'sound off' : 'sound on'}`, hx + hw, hy);
+  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   P = pause   ·   ESC = menu   ·   M = ${sfx.isMuted() ? 'sound off' : 'sound on'}`, hx + hw, hy);
   ctx.restore();
 }
 
@@ -2010,6 +2084,7 @@ function loop() {
   } else if (state === 'HOWTO') {
     if (inRect(mouse, HOWTO_BACK())) cur = 'pointer';
   }
+  drawFade();
   canvas.style.cursor = cur;
 
   requestAnimationFrame(loop);
@@ -2043,7 +2118,7 @@ canvas.addEventListener('pointerdown', e => {
   const p = toCanvas(e);
   mouse.x = p.x;  mouse.y = p.y;
   if (state === 'PLAYING') {
-    if (!play.won) startTile(p.x, p.y);
+    if (!play.won && !paused) startTile(p.x, p.y);
     if (drawing) canvas.setPointerCapture(e.pointerId);
     return;
   }
@@ -2062,18 +2137,19 @@ canvas.addEventListener('click', e => {
   const p = toCanvas(e);
   if (state === 'MENU') {
     const R = menuRects();
-    if (inRect(p, R.play)) { sfx.click(); startGame(); state = 'PLAYING'; }
-    else if (inRect(p, R.how)) { sfx.click(); state = 'HOWTO'; }
+    if (inRect(p, R.play)) { sfx.click(); startGame(); goTo('PLAYING'); }
+    else if (inRect(p, R.how)) { sfx.click(); goTo('HOWTO'); }
   } else if (state === 'HOWTO') {
-    if (inRect(p, HOWTO_BACK())) { sfx.click(); state = 'MENU'; }
+    if (inRect(p, HOWTO_BACK())) { sfx.click(); goTo('MENU'); }
   } else if (state === 'PLAYING') {
+    if (paused) { paused = false; return; }
     if (play.won) {
       const B = WIN_BTNS();
       if (inRect(p, B.again)) { sfx.click(); if (LEVEL.num === TOTAL_LEVELS) startGame(); else nextLevel(); }
-      else if (inRect(p, B.menu)) { sfx.click(); state = 'MENU'; }
+      else if (inRect(p, B.menu)) { sfx.click(); goTo('MENU'); }
     } else if (inRect(p, PLAY_MENU_BTN())) {
       sfx.click();
-      state = 'MENU';
+      goTo('MENU');
     }
   }
 });
@@ -2081,8 +2157,11 @@ canvas.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   sfx.unlock();
   if (e.key === 'm' || e.key === 'M') sfx.toggle();
-  if (e.key === 'Escape' && state !== 'MENU') { drawing = null; state = 'MENU'; }
+  if ((e.key === 'p' || e.key === 'P' || e.key === ' ') && state === 'PLAYING' && !play.won) { paused = !paused; drawing = null; e.preventDefault(); }
+  if (e.key === 'Escape' && state !== 'MENU') { drawing = null; goTo('MENU'); }
 });
+
+window.addEventListener('blur', () => { if (state === 'PLAYING' && !play.won) { paused = true; drawing = null; } });
 
 // ── START ─────────────────────────────────────────────────────────────────────
 layout();
