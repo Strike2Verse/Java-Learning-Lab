@@ -2234,14 +2234,14 @@ function drawBlueprintAnnotations() {
 // each card shows the best star rating. A laser loops around the cards.
 const LEVEL_INFO = [
   null,
-  { name: 'FIRST REFLECTION' },
-  { name: 'STELLAR PATH' },
-  { name: 'PORTAL DRIFT' },
-  { name: 'BLINK CHRONO' },
-  { name: 'SLIDING PISTON' },
-  { name: 'RUSH HOUR' },
-  { name: 'DOUBLE BLINK' },
-  { name: 'MASTER BLUEPRINT' },
+  { name: 'FIRST REFLECTION', desc: 'Bounce the beam off a mirror into the goal' },
+  { name: 'STELLAR PATH', desc: 'Touch every star to open the goal' },
+  { name: 'PORTAL DRIFT', desc: 'Go in one portal, come out the other' },
+  { name: 'BLINK CHRONO', desc: 'Time the beam past the blinking blocks' },
+  { name: 'SLIDING PISTON', desc: 'Dodge the sliding bars' },
+  { name: 'RUSH HOUR', desc: 'Bars and blocks, at a faster speed' },
+  { name: 'DOUBLE BLINK', desc: 'Two blinking blocks taking turns' },
+  { name: 'MASTER BLUEPRINT', desc: 'Every mechanic at once' },
 ];
 const LS = { hover: 0, note: '', noteT: 0, d: 0, t0: 0, resetT: 0 };   // resetT: frames left in which a 2nd click confirms the reset    // hovered card, "locked" note, beam distance
 
@@ -2574,6 +2574,14 @@ function drawLevels() {
   if (LS.resetT > 0) LS.resetT--;
   const armed = LS.resetT > 0;
   drawBtn(R.reset.x, R.reset.y, R.reset.w, R.reset.h, armed ? 'SURE?  CLICK AGAIN' : '↺  RESET PROGRESS', armed ? C.accent : C.inkLight);
+
+  // What the hovered level is about (the "locked" note takes its place when shown)
+  if (LS.hover && LS.noteT <= 0) {
+    ctx.save();
+    ctx.textAlign = 'center';  ctx.fillStyle = C.inkMid;  ctx.font = `20px 'Patrick Hand', cursive`;
+    ctx.fillText(`LEVEL 0${LS.hover}  —  ${LEVEL_INFO[LS.hover].desc}`, W / 2, H - 84);
+    ctx.restore();
+  }
 
   // "locked" note
   if (LS.noteT > 0) {
