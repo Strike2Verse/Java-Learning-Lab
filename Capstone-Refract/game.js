@@ -1166,7 +1166,8 @@ const play = { won: false, lost: false, lostT: 0, misses: 0, total: 0, rating: 0
 
 // ── PROGRESS (saved in the browser) ──────────────────────────────────────────
 // best[n] = best star rating for level n (0 = not cleared yet).
-// 1 star for clearing the level, +1 for the optional bonus star, +1 for no misses.
+// Stars come from the misses (0 misses = 3, 1 miss = 2, 2 misses = 1); the optional
+// bonus star adds one more to make up for a miss (never more than 3).
 const SAVE_KEY = 'refract.progress';
 const progress = { best: new Array(TOTAL_LEVELS + 1).fill(0) };
 
@@ -1181,7 +1182,7 @@ function saveProgress() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (e) { /* ignore */ }
 }
 
-function ratingFor(misses, gotBonus) { return 1 + (gotBonus ? 1 : 0) + (misses === 0 ? 1 : 0); }
+function ratingFor(misses, gotBonus) { return Math.min(3, (3 - misses) + (gotBonus ? 1 : 0)); }   // 0 misses = 3, 1 = 2, 2 = 1, and the bonus star adds one (max 3)
 function isUnlocked(n)     { return n === 1 || progress.best[n - 1] > 0; }
 function totalStars()      { return progress.best.reduce((a, b) => a + b, 0); }
 
@@ -2505,7 +2506,7 @@ function drawLevels() {
   ctx.restore();
   ctx.save();
   ctx.textAlign = 'center';  ctx.fillStyle = C.inkMid;  ctx.font = `19px 'Patrick Hand', cursive`;
-  ctx.fillText('pick a sheet  ·  clear a level to unlock the next  ·  ★ clear  ★ bonus star  ★ no misses', W / 2, ty + th + 28);
+  ctx.fillText('pick a sheet  ·  clear a level to unlock the next  ·  3 stars = no misses  ·  the bonus star wins back a star', W / 2, ty + th + 28);
   ctx.restore();
   wavyLine(W / 2 - 150, W / 2 + 150, ty + th + 38, 3, C.accent);
 
