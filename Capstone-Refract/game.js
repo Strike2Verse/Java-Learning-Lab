@@ -44,6 +44,7 @@ const HOLE   = { x: 0, y: 0, r: 24 };                 // right wall — goal for
 // and the tile rules are fixed. tiles / maxLen are the same on every level:
 // max 3 tiles at once, each at most 120px long.
 const TOTAL_LEVELS = 8;
+const MAX_MISSES   = 3;       // chances per level: the 3rd miss ends the attempt
 let   levelSpec    = null;   // layout of the level being played (kept when the window is resized)
 const LEVEL  = { num: 1, speed: 'SLOW', v: 1.4, tiles: 3, maxLen: 120 };
 
@@ -924,6 +925,13 @@ function beamMiss() {
   sfx.miss();
   shake = 9;
   burst(shot.x, shot.y, 22, C.accent, 3.5);
+  if (play.misses >= MAX_MISSES) {                       // out of chances: the level is lost
+    play.lost = true;  play.lostT = 0;
+    shot.wait = 0;                                       // no more shots
+    shake = 16;
+    for (const t of tiles) oldTiles.push({ ...t, alpha: 1 });   // the tiles fade away
+    tiles.length = 0;  drawing = null;
+  }
 }
 
 /** If the beam is inside a portal, move it to the other end (same direction) */
@@ -945,6 +953,11 @@ function portalJump() {
 
 function updateShot() {
   if (play.won) return;                      // level is solved — beam stays in the hole
+  if (play.lost) {                           // out of chances — trail fades, no new shot
+    shot.spark = Math.max(0, shot.spark - 0.03);
+    shot.trail.shift();
+    return;
+  }
   shot.spark = Math.max(0, shot.spark - 0.03);
   if (shot.wait > 0) {                       // beam is resting after a miss
     shot.trail.shift();                      // trail fades out
@@ -1013,7 +1026,7 @@ function updateShot() {
 
 /** Beam + the spark where it strikes a wall */
 function drawShot() {
-  drawBeamOf(shot, shot.wait === 0);
+  drawBeamOf(shot, shot.wait === 0 && !play.lost);
   if (play.won) shot.spark = 0.6 + 0.4 * Math.sin(frame * 0.15);   // keeps glowing in the hole
   if (shot.spark > 0) {
     const r = 12 + shot.spark * 8;
@@ -1101,11 +1114,11 @@ function clearTiles() {
 // ── WIN STATE ────────────────────────────────────────────────────────────────
 // The level is won when the beam reaches the goal hole. A beam that hits any
 // other part of a wall is a miss and simply fires again.
-const play = { won: false, misses: 0, total: 0, rating: 0, msg: '', msgT: 0 };   // total = misses over all finished levels
+const play = { won: false, lost: false, lostT: 0, misses: 0, total: 0, rating: 0, msg: '', msgT: 0 };   // total = misses over all finished levels
 
 // ── PROGRESS (saved in the browser) ──────────────────────────────────────────
 // best[n] = best star rating for level n (0 = not cleared yet). 3 stars = no
-// misses, 2 stars = up to 2 misses, 1 star = cleared.
+// miss, 1 star = cleared after 2 misses (a 3rd miss loses the level).
 const SAVE_KEY = 'refract.progress';
 const progress = { best: new Array(TOTAL_LEVELS + 1).fill(0) };
 
@@ -1120,7 +1133,7 @@ function saveProgress() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (e) { /* ignore */ }
 }
 
-function ratingFor(misses) { return misses === 0 ? 3 : misses <= 2 ? 2 : 1; }
+function ratingFor(misses) { return misses === 0 ? 3 : misses === 1 ? 2 : 1; }
 function isUnlocked(n)     { return n === 1 || progress.best[n - 1] > 0; }
 function totalStars()      { return progress.best.reduce((a, b) => a + b, 0); }
 
@@ -1137,6 +1150,8 @@ function resetPlay() {
   clearTiles();
   resetShot();
   play.won    = false;
+  play.lost   = false;
+  play.lostT  = 0;
   play.misses = 0;
   play.msgT   = 0;
 }
@@ -1633,7 +1648,7 @@ function drawHowTo() {
     ['Stone walls, sliding bars and blinking blocks absorb the beam.',   false],
     ['Portals: the beam goes in one and comes out the other.',           false],
     ['Collect every star (★) to unlock the goal.',                        false],
-    ['Guide the beam into the GOAL hole on the right wall.',             true ],
+    ['Reach the GOAL hole — you get 3 chances (misses) per level.',     true ],
   ];
   ctx.save();
   lines.forEach(([text, strong], i) => {
@@ -1697,6 +1712,7 @@ function drawPlaying() {
   const b = PLAY_MENU_BTN();
   drawBtn(b.x, b.y, b.w, b.h, '←  LEVELS', C.inkMid);
   if (play.won) drawWin();
+  else if (play.lost) drawLost();
   else if (paused) drawPause();
 }
 
@@ -1753,6 +1769,39 @@ function drawWin() {
   const B = WIN_BTNS();
   drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, LEVEL.num === TOTAL_LEVELS ? '↻   PLAY AGAIN' : 'NEXT LEVEL   →', C.accent);
   drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '≡   LEVELS',     C.inkMid);
+}
+
+/** Shown after the 3rd miss: tiles are gone, try the same level again or go back to the levels */
+function drawLost() {
+  play.lostT++;
+  const a = Math.min(1, Math.max(0, (play.lostT - 25) / 30));      // short pause, then fade in
+  if (a <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = 'rgba(246, 241, 233, 0.65)';
+  ctx.fillRect(0, 0, W, H);
+
+  const pw = 460, ph = 270, px = W/2 - pw/2, py = H/2 - 130;
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillRect(px, py, pw, ph);
+  sketchRect(px, py, pw, ph, 2.5, C.ink);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.accent;
+  ctx.font = `bold 72px 'Caveat', cursive`;
+  ctx.fillText('GAME OVER', W/2, py + 82);
+  wavyLine(W/2 - 110, W/2 + 110, py + 96, 3, C.accent);
+
+  ctx.fillStyle = C.inkMid;
+  ctx.font = `22px 'Patrick Hand', cursive`;
+  ctx.fillText(`Level ${LEVEL.num} — all ${MAX_MISSES} chances used`, W/2, py + 135);
+  ctx.font = `18px 'Patrick Hand', cursive`;
+  ctx.fillText('Your tiles were cleared. Same level, fresh start.', W/2, py + 166);
+
+  const B = WIN_BTNS();
+  drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, '↻   TRY AGAIN', C.accent);
+  drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '≡   LEVELS',    C.inkMid);
+  ctx.restore();
 }
 
 /** Full play area: interior fill + hatched walls + border */
@@ -2006,7 +2055,7 @@ function drawHUD() {
 
   // Left: level
   ctx.textAlign = 'left';
-  ctx.fillText(`LEVEL  ${LEVEL.num}/${TOTAL_LEVELS}   ·   MISSES: ${play.misses}` +
+  ctx.fillText(`LEVEL  ${LEVEL.num}/${TOTAL_LEVELS}   ·   CHANCES: ${'●'.repeat(Math.max(0, MAX_MISSES - play.misses))}${'○'.repeat(Math.min(MAX_MISSES, play.misses))}` +
     (stars.length ? `   ·   STARS: ${stars.length - starsLeft()}/${stars.length}` : ''), hx, hy);
 
   // Centre: speed
@@ -2473,7 +2522,7 @@ function loop() {
   let cur = 'default';
   if (state === 'PLAYING') {
     const B = WIN_BTNS();
-    if (play.won) cur = (inRect(mouse, B.again) || inRect(mouse, B.menu)) ? 'pointer' : 'default';
+    if (play.won || (play.lost && play.lostT > 55)) cur = (inRect(mouse, B.again) || inRect(mouse, B.menu)) ? 'pointer' : 'default';
     else cur = inRect(mouse, PLAY_MENU_BTN()) ? 'pointer' : 'crosshair';
   }
   else if (state === 'MENU') {
@@ -2521,7 +2570,7 @@ canvas.addEventListener('pointerdown', e => {
   const p = toCanvas(e);
   mouse.x = p.x;  mouse.y = p.y;
   if (state === 'PLAYING') {
-    if (!play.won && !paused) startTile(p.x, p.y);
+    if (!play.won && !play.lost && !paused) startTile(p.x, p.y);
     if (drawing) canvas.setPointerCapture(e.pointerId);
     return;
   }
@@ -2564,6 +2613,12 @@ canvas.addEventListener('click', e => {
       const B = WIN_BTNS();
       if (inRect(p, B.again)) { sfx.click(); if (LEVEL.num === TOTAL_LEVELS) startGame(); else nextLevel(); }
       else if (inRect(p, B.menu)) { sfx.click(); goTo('LEVELS'); }
+    } else if (play.lost) {
+      if (play.lostT > 55) {                                       // buttons appear once the overlay has faded in
+        const B = WIN_BTNS();
+        if (inRect(p, B.again)) { sfx.click(); applyLevel(); fade = 1; particles.length = 0; }
+        else if (inRect(p, B.menu)) { sfx.click(); goTo('LEVELS'); }
+      }
     } else if (inRect(p, PLAY_MENU_BTN())) {
       sfx.click();
       goTo('LEVELS');
@@ -2574,11 +2629,11 @@ canvas.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   sfx.unlock();
   if (e.key === 'm' || e.key === 'M') sfx.toggle();
-  if ((e.key === 'p' || e.key === 'P' || e.key === ' ') && state === 'PLAYING' && !play.won) { paused = !paused; drawing = null; e.preventDefault(); }
+  if ((e.key === 'p' || e.key === 'P' || e.key === ' ') && state === 'PLAYING' && !play.won && !play.lost) { paused = !paused; drawing = null; e.preventDefault(); }
   if (e.key === 'Escape' && state !== 'MENU') { drawing = null; goTo(state === 'PLAYING' ? 'LEVELS' : 'MENU'); }
 });
 
-window.addEventListener('blur', () => { if (state === 'PLAYING' && !play.won) { paused = true; drawing = null; } });
+window.addEventListener('blur', () => { if (state === 'PLAYING' && !play.won && !play.lost) { paused = true; drawing = null; } });
 
 // ── START ─────────────────────────────────────────────────────────────────────
 layout();
