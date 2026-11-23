@@ -51,12 +51,13 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - Level 7 adds a second blinking block; the beam rests for a random time after a miss so timing can't get stuck
 - **Win:** when the beam reaches the goal hole, a **GOAL!** screen shows how many misses it took, with **NEXT LEVEL** and **MENU** buttons
 - After level 8 an **ALL CLEAR!** screen shows your total misses, with **PLAY AGAIN** (back to level 1) and **MENU**
+- **Bonus star:** every level has one optional blue star (marked BONUS) placed off the planned path. It never blocks the goal, but collecting it earns an extra level star
 - Hitting any other part of a wall counts as a miss. **You get 3 chances per level:** the HUD shows `CHANCES: ●●●` and the 3rd miss ends the attempt
 - **Game over:** your tiles fade away and a **GAME OVER** screen offers **TRY AGAIN** (same level layout, fresh start) or **LEVELS**
 
 ### Level select screen
 - **PLAY** opens a drafting-sheet "STAGE SELECT" with 8 level cards (name, hand-drawn animated icon, 3-star rating)
-- Stars: 3 = no misses, 2 = one miss, 1 = two misses. The best rating per level is saved in the browser (`localStorage`)
+- Stars: 1 for clearing the level, +1 for the **bonus star**, +1 for finishing with no misses. So clearing after 2 misses is 2 stars with the bonus star and 1 star without it. The best rating per level is saved in the browser (`localStorage`)
 - A level unlocks once the one before it is cleared; locked cards show a padlock
 - The bottom bar has `← MAIN MENU`, `TOTAL STARS: n/24` and a sound toggle
 - The win screen shows the stars you earned and a `LEVELS` button
