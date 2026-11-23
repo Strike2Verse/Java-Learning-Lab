@@ -1042,7 +1042,7 @@ function burst(x, y, n, col, speed = 3, size = 3) {
 }
 
 /** Change screen with a soft fade-in */
-function goTo(s) { state = s; fade = 1; paused = false; particles.length = 0; shake = 0; }
+function goTo(s) { if (s === 'LEVELS') LS.t0 = frame; state = s; fade = 1; paused = false; particles.length = 0; shake = 0; }
 
 function updateFX() {
   shake = Math.max(0, shake - 0.6);
@@ -2099,14 +2099,15 @@ const LEVEL_INFO = [
   { name: 'DOUBLE BLINK' },
   { name: 'MASTER BLUEPRINT' },
 ];
-const LS = { hover: 0, note: '', noteT: 0, d: 0 };    // hovered card, "locked" note, beam distance
+const LS = { hover: 0, note: '', noteT: 0, d: 0, t0: 0 };    // hovered card, "locked" note, beam distance
 
 function levelRects() {
-  const gap  = 26;
-  const gw   = Math.min(W - 100, 1040);
+  const gap  = 28;
+  const gw   = Math.min(W - 100, 1100);
   const cw   = (gw - gap * 3) / 4;
-  const top  = 150, bottom = H - 96;
-  const ch   = Math.max(130, Math.min(cw * 0.92, (bottom - top - gap) / 2));
+  const area = { top: 168, bottom: H - 108 };
+  const ch   = Math.max(170, Math.min(cw * 1.08, (area.bottom - area.top - gap) / 2));
+  const top  = area.top + Math.max(0, (area.bottom - area.top - (2 * ch + gap)) / 2);
   const gx   = (W - gw) / 2;
   const cards = [];
   for (let i = 0; i < TOTAL_LEVELS; i++) {
@@ -2128,11 +2129,20 @@ function drawLevelIcon(n, cx, cy, s) {
   ctx.strokeStyle = C.ink;  ctx.lineWidth = 2;
   const t = frame * 0.04;
   if (n === 1) {                                   // mirror + beam
-    ctx.beginPath(); ctx.moveTo(cx - s * 0.2, cy + s * 0.5); ctx.lineTo(cx + s * 0.2, cy - s * 0.5); ctx.stroke();
-    ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(cx, cy + s * 0.5); ctx.lineTo(cx - s * 0.3, cy + s * 0.62); ctx.moveTo(cx, cy + s * 0.5); ctx.lineTo(cx + s * 0.3, cy + s * 0.62); ctx.stroke();
-    ctx.strokeStyle = C.accent;  ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(cx - s * 1.0, cy + s * 0.1); ctx.lineTo(cx - s * 0.05, cy + s * 0.1); ctx.lineTo(cx + s * 0.05, cy - s * 0.9); ctx.stroke();
+    // mirror: thick glass line with a shine, on a little stand
+    ctx.lineWidth = 4.5;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.18, cy + s * 0.55); ctx.lineTo(cx + s * 0.22, cy - s * 0.55); ctx.stroke();
+    ctx.strokeStyle = 'rgba(120, 170, 220, 0.9)';  ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.14, cy + s * 0.45); ctx.lineTo(cx + s * 0.18, cy - s * 0.45); ctx.stroke();
+    ctx.strokeStyle = C.ink;  ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.18, cy + s * 0.55); ctx.lineTo(cx - s * 0.4, cy + s * 0.7); ctx.moveTo(cx - s * 0.18, cy + s * 0.55); ctx.lineTo(cx + s * 0.05, cy + s * 0.7); ctx.stroke();
+    // beam in, beam out (the outgoing part pulses), spark on the mirror
+    const hx = cx + s * 0.02, hy = cy + s * 0.02;
+    ctx.strokeStyle = C.accent;  ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(cx - s * 1.1, hy); ctx.lineTo(hx, hy); ctx.lineTo(hx + s * 0.1 + Math.sin(frame * 0.12) * 2, cy - s * 1.0); ctx.stroke();
+    const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, s * 0.3);
+    g.addColorStop(0, 'rgba(255, 200, 130, 0.9)');  g.addColorStop(1, 'rgba(192, 57, 43, 0)');
+    ctx.fillStyle = g;  ctx.beginPath(); ctx.arc(hx, hy, s * 0.3, 0, Math.PI * 2); ctx.fill();
   } else if (n === 2) {                            // stars
     ctx.fillStyle = 'rgba(235, 185, 60, 0.95)';  ctx.lineWidth = 1.8;
     starPath(cx, cy, s * 0.55);                     ctx.fill(); ctx.stroke();
@@ -2194,67 +2204,138 @@ function drawPadlock(x, y, s) {
   ctx.restore();
 }
 
-function drawLevelCard(c, hov) {
-  const open = isUnlocked(c.n), lift = hov && open ? -5 : 0;
-  const x = c.x, y = c.y + lift, w = c.w, h = c.h;
-  const best = progress.best[c.n], info = LEVEL_INFO[c.n];
+const LV_COL = [null, '#C0392B', '#E0A800', '#3E6FB0', '#7A52C7', '#2A9DB8', '#D2691E', '#B03A7A', '#2E7D4F'];
 
-  // Paper card with shadow
+function drawLevelCard(c, hov) {
+  const open = isUnlocked(c.n), best = progress.best[c.n], info = LEVEL_INFO[c.n], col = LV_COL[c.n];
+  const cleared = best > 0;
+  const current = open && !cleared && (c.n === 1 || progress.best[c.n - 1] > 0);   // the level to play next
+  const lift = hov && open ? -6 : 0;
+
+  // Slide-in when the screen opens (staggered)
+  const e0 = Math.max(0, Math.min(1, (frame - LS.t0 - c.n * 4) / 24)), e = 1 - Math.pow(1 - e0, 3);
+  if (e <= 0) return;
+  const x = c.x, y = c.y + lift + (1 - e) * 46, w = c.w, h = c.h;
+  const tilt = hov && open ? 0 : (((c.n * 37) % 7) - 3) * 0.004;
+
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.10)';  ctx.fillRect(x + 5, y + 5 - lift, w, h);
-  ctx.fillStyle = open ? 'rgba(255,255,255,0.92)' : 'rgba(236,231,220,0.85)';
+  ctx.globalAlpha = e;
+  ctx.translate(x + w / 2, y + h / 2);  ctx.rotate(tilt);  ctx.translate(-(x + w / 2), -(y + h / 2));
+
+  // Paper card (glows when it is the next level to play)
+  ctx.save();
+  ctx.shadowColor = current ? `rgba(192, 57, 43, ${0.35 + 0.2 * Math.sin(frame * 0.08)})` : 'rgba(0,0,0,0.18)';
+  ctx.shadowBlur  = current ? 18 : (hov && open ? 16 : 6);
+  ctx.shadowOffsetX = current ? 0 : 4;  ctx.shadowOffsetY = current ? 0 : 5;
+  ctx.fillStyle = open ? '#FFFFFF' : '#E7E0D2';
   ctx.fillRect(x, y, w, h);
   ctx.restore();
-  sketchRect(x, y, w, h, hov && open ? 3 : 2, open ? (hov ? C.accent : C.ink) : C.inkLight);
 
-  // Header: card tag + title
+  // Locked cards get a pencil hatch
+  if (!open) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.strokeStyle = 'rgba(80, 70, 50, 0.10)';  ctx.lineWidth = 1;
+    for (let k = -h; k < w; k += 11) { ctx.beginPath(); ctx.moveTo(x + k, y + h); ctx.lineTo(x + k + h, y); ctx.stroke(); }
+    ctx.restore();
+  } else {
+    // soft colour wash behind the header
+    ctx.fillStyle = col + '1F';
+    ctx.fillRect(x, y, w, 66);
+  }
+  sketchRect(x, y, w, h, current || (hov && open) ? 3 : 2, open ? (current ? C.accent : hov ? col : C.ink) : C.inkLight);
+
+  // Washi tape on top
   ctx.save();
-  ctx.globalAlpha = open ? 1 : 0.55;
+  ctx.translate(x + w / 2, y + 2);  ctx.rotate(-0.05);
+  ctx.fillStyle = open ? col + '66' : 'rgba(120,110,90,0.28)';
+  ctx.fillRect(-30, -9, 60, 18);
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';  ctx.lineWidth = 1;  ctx.strokeRect(-30, -9, 60, 18);
+  ctx.restore();
+
+  // Header: level number + speed chip, then the name
+  ctx.save();
+  ctx.globalAlpha = e * (open ? 1 : 0.6);
   ctx.textAlign = 'left';  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = 'rgba(55, 95, 155, 0.8)';
-  ctx.font = `12px 'Patrick Hand', cursive`;
-  ctx.fillText(`CARD ${c.n}`, x + 10, y + 16);
-  ctx.fillStyle = C.ink;
-  ctx.font = `bold 15px 'Architects Daughter', cursive`;
-  ctx.fillText(`LEVEL 0${c.n} // ${info.name}`, x + 10, y + 36, w - 20);
-  ctx.strokeStyle = 'rgba(55, 95, 155, 0.5)';  ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(x + 8, y + 44); ctx.lineTo(x + w - 8, y + 44); ctx.stroke();
+  ctx.fillStyle = 'rgba(55, 95, 155, 0.9)';
+  ctx.font = `13px 'Patrick Hand', cursive`;
+  ctx.fillText(`LEVEL 0${c.n}`, x + 12, y + 30);
+  const sp = speedName(1.4 + 0.4 * (c.n - 1));
+  ctx.font = `bold 11px 'Architects Daughter', cursive`;
+  const sw = ctx.measureText(sp).width + 12;
+  ctx.strokeStyle = open ? col : C.inkLight;  ctx.lineWidth = 1.4;
+  ctx.strokeRect(x + w - 12 - sw, y + 18, sw, 18);
+  ctx.fillStyle = open ? col : C.inkLight;  ctx.textAlign = 'center';
+  ctx.fillText(sp, x + w - 12 - sw / 2, y + 31);
+  ctx.textAlign = 'left';  ctx.fillStyle = C.ink;
+  ctx.font = `bold 17px 'Architects Daughter', cursive`;
+  ctx.fillText(info.name, x + 12, y + 56, w - 24);
   ctx.restore();
+  ctx.strokeStyle = 'rgba(55, 95, 155, 0.45)';  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x + 8, y + 66); ctx.lineTo(x + w - 8, y + 66); ctx.stroke();
 
-  // Picture (clipped to its area)
-  const ay = y + 48, ah = h - 48 - 46;
-  ctx.save();
-  ctx.beginPath(); ctx.rect(x + 4, ay, w - 8, ah); ctx.clip();
-  ctx.globalAlpha = open ? 1 : 0.28;
-  drawLevelIcon(c.n, x + w / 2, ay + ah / 2, Math.min(ah * 0.42, w * 0.2));
-  ctx.restore();
-  if (!open) drawPadlock(x + w / 2, ay + ah / 2, Math.min(ah * 0.55, 46));
+  // Picture area
+  const ay = y + 68, ah = h - 68 - 52;
+  if (open) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x + 4, ay, w - 8, ah); ctx.clip();
+    drawLevelIcon(c.n, x + w / 2, ay + ah / 2, Math.min(ah * 0.46, w * 0.24));
+    ctx.restore();
+  } else {
+    drawPadlock(x + w / 2, ay + ah / 2 - 2, Math.min(ah * 0.6, 54));
+  }
 
-  // Footer: stars + launch button
-  const fy = y + h - 36;
+  // Stamps
+  if (cleared) {
+    ctx.save();
+    ctx.translate(x + w - 56, ay + ah - 22);  ctx.rotate(-0.28);
+    const gold = best === 3;
+    ctx.strokeStyle = gold ? '#B8860B' : C.accent;  ctx.fillStyle = ctx.strokeStyle;
+    ctx.globalAlpha = e * 0.8;  ctx.lineWidth = 2.2;
+    ctx.strokeRect(-38, -12, 76, 24);
+    ctx.font = `bold 14px 'Architects Daughter', cursive`;  ctx.textAlign = 'center';  ctx.textBaseline = 'middle';
+    ctx.fillText(gold ? 'PERFECT' : 'CLEARED', 0, 1);
+    ctx.restore();
+  }
+  if (current) {
+    ctx.save();
+    ctx.translate(x + w - 8, y + 6);  ctx.rotate(0.35);
+    ctx.fillStyle = C.accent;  ctx.fillRect(-26, -10, 52, 20);
+    ctx.fillStyle = '#fff';  ctx.font = `bold 12px 'Architects Daughter', cursive`;
+    ctx.textAlign = 'center';  ctx.textBaseline = 'middle';
+    ctx.fillText('NEXT UP', 0, 1);
+    ctx.restore();
+  }
+
+  // Footer: stars + button
+  const fy = y + h - 42;
+  ctx.strokeStyle = 'rgba(55, 95, 155, 0.25)';  ctx.lineWidth = 1;  ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(x + 8, fy - 4); ctx.lineTo(x + w - 8, fy - 4); ctx.stroke();  ctx.setLineDash([]);
   for (let i = 0; i < 3; i++) {
     ctx.save();
-    ctx.lineJoin = 'round';  ctx.lineWidth = 1.5;  ctx.strokeStyle = open ? C.ink : C.inkLight;
-    ctx.fillStyle = i < best ? 'rgba(235, 185, 60, 0.95)' : 'rgba(0,0,0,0.04)';
-    starPath(x + 20 + i * 24, fy + 14, 9);
+    ctx.lineJoin = 'round';  ctx.lineWidth = 1.6;  ctx.strokeStyle = open ? C.ink : C.inkLight;
+    ctx.fillStyle = i < best ? 'rgba(235, 185, 60, 0.98)' : 'rgba(0,0,0,0.04)';
+    starPath(x + 22 + i * 27, fy + 20, 11);
     ctx.fill();  ctx.stroke();
     ctx.restore();
   }
   if (open) {
-    const bx = x + w - 96, by = fy, bw = 86, bh = 28;
+    const bw = 92, bh = 30, bx = x + w - bw - 10, by = fy + 5;
     ctx.save();
-    ctx.fillStyle = hov ? C.ink : C.accent;  ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';  ctx.fillRect(bx + 2, by + 2, bw, bh);
+    ctx.fillStyle = hov ? C.ink : (current ? C.accent : col);  ctx.fillRect(bx, by, bw, bh);
     ctx.fillStyle = '#fff';  ctx.font = `bold 14px 'Architects Daughter', cursive`;
     ctx.textAlign = 'center';  ctx.textBaseline = 'middle';
-    ctx.fillText(best ? '↻ REPLAY' : '▶ LAUNCH', bx + bw / 2, by + bh / 2 + 1);
+    ctx.fillText(cleared ? '↻ REPLAY' : '▶ LAUNCH', bx + bw / 2, by + bh / 2 + 1);
     ctx.restore();
   } else {
     ctx.save();
-    ctx.fillStyle = C.inkLight;  ctx.font = `13px 'Patrick Hand', cursive`;
+    ctx.fillStyle = C.inkMid;  ctx.font = `14px 'Patrick Hand', cursive`;
     ctx.textAlign = 'right';  ctx.textBaseline = 'middle';
-    ctx.fillText(`clear level ${c.n - 1} first`, x + w - 10, fy + 14);
+    ctx.fillText(`clear level ${c.n - 1} first`, x + w - 12, fy + 20);
     ctx.restore();
   }
+  ctx.restore();
 }
 
 /** A laser loops around the grid, bouncing off a small tile at each corner */
@@ -2306,19 +2387,24 @@ function drawLevels() {
   drawDoodles();
 
   // Title block
-  const tw = 420, th = 78, tx = W / 2 - tw / 2, ty = 38;
+  const tw = 540, th = 82, tx = W / 2 - tw / 2, ty = 30;
   ctx.save();  ctx.fillStyle = 'rgba(255,255,255,0.88)';  ctx.fillRect(tx, ty, tw, th);  ctx.restore();
   sketchRect(tx, ty, tw, th, 2.5, C.ink);
   ctx.save();
   ctx.textAlign = 'center';  ctx.fillStyle = C.ink;
-  ctx.font = `bold 34px 'Architects Daughter', cursive`;
-  ctx.fillText('REFRACT // STAGE SELECT', W / 2, ty + 38);
+  ctx.font = `bold 32px 'Architects Daughter', cursive`;
+  ctx.fillText('REFRACT // STAGE SELECT', W / 2, ty + 37);
   ctx.strokeStyle = C.inkMid;  ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(tx + 8, ty + 48); ctx.lineTo(tx + tw - 8, ty + 48); ctx.stroke();
   ctx.fillStyle = C.inkMid;  ctx.font = `16px 'Patrick Hand', cursive`;
   ctx.textAlign = 'left';   ctx.fillText('SHEET NO.  02 - LEVEL ARCHIVES', tx + 12, ty + 68);
   ctx.textAlign = 'right';  ctx.fillText('SCALE 1:1', tx + tw - 12, ty + 68);
   ctx.restore();
+  ctx.save();
+  ctx.textAlign = 'center';  ctx.fillStyle = C.inkMid;  ctx.font = `19px 'Patrick Hand', cursive`;
+  ctx.fillText('pick a sheet  ·  clear a level to unlock the next  ·  3 stars = no misses', W / 2, ty + th + 28);
+  ctx.restore();
+  wavyLine(W / 2 - 150, W / 2 + 150, ty + th + 38, 3, C.accent);
 
   drawLevelBeam(R);
 
@@ -2331,6 +2417,7 @@ function drawLevels() {
   drawBtn(R.sound.x, R.sound.y, R.sound.w, R.sound.h, sfx.isMuted() ? '♪  SOUND OFF' : '♪  SOUND ON', C.inkMid);
   const sb = R.stars;
   ctx.save();  ctx.fillStyle = 'rgba(255,255,255,0.82)';  ctx.fillRect(sb.x, sb.y, sb.w, sb.h);  ctx.restore();
+  ctx.save();  ctx.fillStyle = 'rgba(235, 185, 60, 0.4)';  ctx.fillRect(sb.x + 3, sb.y + 3, (sb.w - 6) * totalStars() / (TOTAL_LEVELS * 3), sb.h - 6);  ctx.restore();
   sketchRect(sb.x, sb.y, sb.w, sb.h, 2, C.ink);
   ctx.save();
   ctx.textAlign = 'center';  ctx.textBaseline = 'middle';  ctx.fillStyle = C.ink;
