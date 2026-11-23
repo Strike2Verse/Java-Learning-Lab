@@ -29,7 +29,7 @@ const C = {
 };
 
 // ── GAME STATE ───────────────────────────────────────────────────────────────
-let state   = 'MENU';   // MENU | PLAYING | HOWTO
+let state   = 'MENU';   // MENU | LEVELS | PLAYING | HOWTO
 let frame   = 0;
 let mouse   = { x: 0, y: 0 };
 
@@ -993,6 +993,7 @@ function updateShot() {
     shot.spark = 1;
     play.won = true;
     play.total += play.misses;
+    recordWin();
     for (const c of [C.accent, '#E0A800', '#3E6FB0']) burst(HOLE.x, HOLE.y, 30, c, 6, 4);
     sfx.win(LEVEL.num === TOTAL_LEVELS);
     return;
@@ -1100,7 +1101,36 @@ function clearTiles() {
 // ── WIN STATE ────────────────────────────────────────────────────────────────
 // The level is won when the beam reaches the goal hole. A beam that hits any
 // other part of a wall is a miss and simply fires again.
-const play = { won: false, misses: 0, total: 0, msg: '', msgT: 0 };   // total = misses over all finished levels
+const play = { won: false, misses: 0, total: 0, rating: 0, msg: '', msgT: 0 };   // total = misses over all finished levels
+
+// ── PROGRESS (saved in the browser) ──────────────────────────────────────────
+// best[n] = best star rating for level n (0 = not cleared yet). 3 stars = no
+// misses, 2 stars = up to 2 misses, 1 star = cleared.
+const SAVE_KEY = 'refract.progress';
+const progress = { best: new Array(TOTAL_LEVELS + 1).fill(0) };
+
+function loadProgress() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (d && Array.isArray(d.best)) for (let i = 1; i <= TOTAL_LEVELS; i++) progress.best[i] = Math.max(0, Math.min(3, d.best[i] | 0));
+  } catch (e) { /* no saved progress yet, or storage is blocked */ }
+}
+
+function saveProgress() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (e) { /* ignore */ }
+}
+
+function ratingFor(misses) { return misses === 0 ? 3 : misses <= 2 ? 2 : 1; }
+function isUnlocked(n)     { return n === 1 || progress.best[n - 1] > 0; }
+function totalStars()      { return progress.best.reduce((a, b) => a + b, 0); }
+
+/** Remember the result of the level just won */
+function recordWin() {
+  const r = ratingFor(play.misses);
+  play.rating = r;
+  if (r > progress.best[LEVEL.num]) { progress.best[LEVEL.num] = r; saveProgress(); }
+}
+loadProgress();
 
 /** Fresh attempt: no tiles, beam back at the source, counters cleared */
 function resetPlay() {
@@ -1123,10 +1153,10 @@ function applyLevel() {
   resetPlay();
 }
 
-function startGame() {
-  LEVEL.num  = 1;
+function startGame(n = 1) {
+  LEVEL.num  = n;
   play.total = 0;
-  levelSpec  = generateLevel(1);
+  levelSpec  = generateLevel(n);
   applyLevel();
   fade = 1;  particles.length = 0;
 }
@@ -1672,8 +1702,8 @@ function drawPlaying() {
 
 // ── WIN SCREEN ───────────────────────────────────────────────────────────────
 const WIN_BTNS = () => ({
-  again: { x: W/2 - 190, y: H/2 + 40, w: 180, h: 50 },
-  menu:  { x: W/2 + 10,  y: H/2 + 40, w: 180, h: 50 },
+  again: { x: W/2 - 190, y: H/2 + 60, w: 180, h: 50 },
+  menu:  { x: W/2 + 10,  y: H/2 + 60, w: 180, h: 50 },
 });
 
 function drawWin() {
@@ -1682,7 +1712,7 @@ function drawWin() {
   ctx.fillRect(0, 0, W, H);
   ctx.restore();
 
-  const pw = 460, ph = 250, px = W/2 - pw/2, py = H/2 - 130;
+  const pw = 460, ph = 270, px = W/2 - pw/2, py = H/2 - 130;
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.fillRect(px, py, pw, ph);
@@ -1708,6 +1738,17 @@ function drawWin() {
     ctx.fillText(m === 0 ? `Level ${LEVEL.num} — perfect, first shot!` : `Level ${LEVEL.num} — solved after ${m} miss${m === 1 ? '' : 'es'}`, W/2, py + 135);
   }
   ctx.restore();
+
+  // Star rating for this level
+  for (let i = 0; i < 3; i++) {
+    ctx.save();
+    ctx.lineJoin = 'round';  ctx.lineWidth = 1.8;  ctx.strokeStyle = C.ink;
+    ctx.fillStyle = i < play.rating ? 'rgba(235, 185, 60, 0.95)' : 'rgba(0,0,0,0.05)';
+    ctx.globalAlpha = i < play.rating ? 1 : 0.5;
+    starPath(W/2 + (i - 1) * 40, py + 165, 15);
+    ctx.fill();  ctx.stroke();
+    ctx.restore();
+  }
 
   const B = WIN_BTNS();
   drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, LEVEL.num === TOTAL_LEVELS ? '↻   PLAY AGAIN' : 'NEXT LEVEL   →', C.accent);
