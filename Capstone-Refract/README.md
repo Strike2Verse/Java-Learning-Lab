@@ -35,6 +35,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 
 ### Play screen
 - Opens from the **PLAY** button
+- The play field has a maximum size (about 1180 × 640) and is centred on the sheet, so the game feels the same on a laptop and a big monitor. The beam starts a little faster (level 1 is SLOW but not a crawl) and fires again quickly after a miss
 - Blueprint-style play area with hatched walls, the laser source on the left and the goal hole on the right
 - The laser beam (same trail-and-glow beam as the home screen) fires from the source and keeps going
 - **Click + drag** inside the play area to draw a tile; the beam bounces off it
@@ -52,7 +53,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - **Win:** when the beam reaches the goal hole, a **GOAL!** screen shows how many misses it took, with **NEXT LEVEL** and **MENU** buttons
 - After level 8 an **ALL CLEAR!** screen shows your total misses, with **PLAY AGAIN** (back to level 1) and **MENU**
 - **Bonus star:** every level has one optional blue star (marked BONUS) placed off the planned path. It never blocks the goal, but collecting it wins back a star lost to a miss
-- Hitting any other part of a wall counts as a miss. **You get 3 chances per level:** the HUD shows `CHANCES: ●●●` and the 3rd miss ends the attempt
+- Hitting any other part of a wall counts as a miss. **You get 3 chances per level:** three big hearts in the top bar show what is left (one breaks away on each miss) and the 3rd miss ends the attempt
 - **Game over:** your tiles fade away and a **GAME OVER** screen offers **TRY AGAIN** (same level layout, fresh start) or **LEVELS**
 
 ### Level select screen
