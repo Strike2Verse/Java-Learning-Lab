@@ -35,6 +35,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 
 ### Play screen
 - Opens from the **PLAY** button
+- The play field has a maximum size (about 1180 × 640) and is centred on the sheet, so the game feels the same on a laptop and a big monitor. The beam starts a little faster (level 1 is SLOW but not a crawl) and fires again quickly after a miss
 - Blueprint-style play area with hatched walls, the laser source on the left and the goal hole on the right
 - The laser beam (same trail-and-glow beam as the home screen) fires from the source and keeps going
 - **Click + drag** inside the play area to draw a tile; the beam bounces off it
@@ -51,7 +52,18 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 - Level 7 adds a second blinking block; the beam rests for a random time after a miss so timing can't get stuck
 - **Win:** when the beam reaches the goal hole, a **GOAL!** screen shows how many misses it took, with **NEXT LEVEL** and **MENU** buttons
 - After level 8 an **ALL CLEAR!** screen shows your total misses, with **PLAY AGAIN** (back to level 1) and **MENU**
-- Hitting any other part of a wall counts as a miss; the HUD shows `MISSES: n`
+- **Bonus star:** every level has one optional blue star (marked BONUS) placed off the planned path. It never blocks the goal, but collecting it wins back a star lost to a miss
+- Hitting any other part of a wall counts as a miss. **You get 3 chances per level:** three big hearts in the top bar show what is left (one breaks away on each miss) and the 3rd miss ends the attempt
+- **Game over:** your tiles fade away and a **GAME OVER** screen offers **TRY AGAIN** (same level layout, fresh start) or **LEVELS**
+
+### Level select screen
+- **PLAY** opens a drafting-sheet "STAGE SELECT" with 8 level cards (name, hand-drawn animated icon, 3-star rating)
+- Stars: 3 = no misses, 2 = one miss, 1 = two misses. The **bonus star** adds one star on top (never more than 3), so it wins back a star you lost to a miss: one miss + bonus = 3 stars, two misses + bonus = 2 stars. The best rating per level is saved in the browser (`localStorage`)
+- A level unlocks once the one before it is cleared; locked cards show a padlock
+- The bottom bar has `← MAIN MENU`, `TOTAL STARS: n/24` and a sound toggle
+- The win screen shows the stars you earned and a `LEVELS` button
+- **↺ RESET PROGRESS** (top right) clears all saved stars: click once, then click again within 3 seconds to confirm
+- Progress is stored only in your own browser (`localStorage`) — nothing is sent anywhere
 
 ### Controls
 
@@ -59,13 +71,14 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 |-------|--------|
 | Click + drag a mirror's middle (home screen) | Move the mirror |
 | Click + drag a mirror's end (home screen) | Rotate / resize the mirror |
-| Click `PLAY` | Open the play screen |
+| Click `PLAY` | Open the level select screen |
+| Click a level card (level select) | Start that level (locked until the one before is cleared) |
 | Click + drag (play screen) | Draw a tile (max length, 3 at a time) |
 | Click `HOW TO PLAY` | Open the how-to-play screen |
-| Click `← MENU` (play screen) | Return to the home screen |
-| Click `NEXT LEVEL` / `PLAY AGAIN` / `MENU` (after winning) | Go to the next level (or restart from level 1 after the last) / return to the home screen |
+| Click `← LEVELS` (play screen) | Return to the level select screen |
+| Click `NEXT LEVEL` / `PLAY AGAIN` / `LEVELS` (after winning) | Go to the next level (or restart from level 1 after the last) / return to the level select screen |
 | `P` / `Space` (play screen) | Pause / resume |
-| `ESC` | Return to the home screen |
+| `ESC` | Play screen → level select · level select / how-to → home screen |
 
 ---
 
@@ -94,6 +107,7 @@ No installation. No compilation. Just:
 | 9 | Random, always-winnable levels (8) with stars, portals, blinking blocks and sliding bars | ✅ Done |
 | 10 | Synthesised sound (Web Audio): musical bounces, star chimes, portal whoosh, win fanfare, looping background song that gets faster and fuller each level, `M` to mute | ✅ Done |
 | 11 | Polish: particle bursts, screen shake on misses, fade transitions, pause (`P` / Space, auto-pauses when the window loses focus) | ✅ Done |
+| 12 | Level select screen: 8 cards with hand-drawn icons, best star rating per level saved in the browser, levels unlock one by one, laser loops around the cards | ✅ Done |
 
 ---
 
@@ -115,7 +129,7 @@ Capstone-Refract/
 | Segment intersection geometry | Beam–mirror and beam–tile collision |
 | Pointer events | Dragging mirrors and drawing tiles (mouse and touch) |
 | Pre-rendered offscreen canvas | Paper texture (performance) |
-| Vanilla JS state machine | `MENU` · `HOWTO` · `PLAYING` |
+| Vanilla JS state machine | `MENU` · `LEVELS` · `HOWTO` · `PLAYING` |
 
 ---
 

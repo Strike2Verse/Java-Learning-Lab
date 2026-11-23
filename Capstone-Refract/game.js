@@ -29,7 +29,7 @@ const C = {
 };
 
 // ── GAME STATE ───────────────────────────────────────────────────────────────
-let state   = 'MENU';   // MENU | PLAYING | HOWTO
+let state   = 'MENU';   // MENU | LEVELS | PLAYING | HOWTO
 let frame   = 0;
 let mouse   = { x: 0, y: 0 };
 
@@ -44,6 +44,7 @@ const HOLE   = { x: 0, y: 0, r: 24 };                 // right wall — goal for
 // and the tile rules are fixed. tiles / maxLen are the same on every level:
 // max 3 tiles at once, each at most 120px long.
 const TOTAL_LEVELS = 8;
+const MAX_MISSES   = 3;       // chances per level: the 3rd miss ends the attempt
 let   levelSpec    = null;   // layout of the level being played (kept when the window is resized)
 const LEVEL  = { num: 1, speed: 'SLOW', v: 1.4, tiles: 3, maxLen: 120 };
 
@@ -333,8 +334,11 @@ function buildDoodles() {
 
 // ── LAYOUT (runs at start and on every window resize) ────────────────────────
 function layout() {
-  PLAY.x = 60;  PLAY.y = 48;
-  PLAY.w = W - 120;  PLAY.h = H - 96;
+  // The play field never grows past a set size (so a big monitor plays like a laptop); it is centred on the sheet.
+  PLAY.w = Math.min(W - 120, 1180);
+  PLAY.h = Math.min(H - 96, 640);
+  PLAY.x = (W - PLAY.w) / 2;
+  PLAY.y = Math.max(48, (H - PLAY.h) / 2 - 6);
   INT.x = PLAY.x + WALL_T;        INT.y = PLAY.y + WALL_T;
   INT.w = PLAY.w - WALL_T * 2;    INT.h = PLAY.h - WALL_T * 2;
   SOURCE.x = INT.x;
@@ -565,6 +569,7 @@ function resetBeam() {
 const obstacles = [];       // { kind, x, y, w, h, ... }
 const portals   = [];       // { a: {x, y}, b: {x, y}, r }
 const stars     = [];       // { x, y, got, flash }
+let   bonus     = null;     // optional bonus star { x, y, got, flash } — never blocks the goal, but earns a level star
 
 function starsLeft() { return stars.filter(s => !s.got).length; }
 
@@ -597,6 +602,8 @@ function buildExtras() {
   for (const s of levelSpec.stars) {
     stars.push({ x: INT.x + INT.w * s.x, y: INT.y + INT.h * s.y, got: false, flash: 0 });
   }
+  const b = levelSpec.bonus;
+  bonus = b ? { x: INT.x + INT.w * b.x, y: INT.y + INT.h * b.y, got: false, flash: 0 } : null;
 }
 
 /** Moves the sliding bars and switches the blinking blocks (called once per frame) */
@@ -642,15 +649,17 @@ function rectsClash(a, b, mx, my) {
 }
 
 function speedName(v) {
-  return v < 1.7 ? 'SLOW' : v < 2.5 ? 'MEDIUM' : v < 3.3 ? 'FAST' : v < 4.0 ? 'VERY FAST' : 'INSANE';
+  return v < 2.1 ? 'SLOW' : v < 2.9 ? 'MEDIUM' : v < 3.6 ? 'FAST' : v < 4.1 ? 'VERY FAST' : 'INSANE';
 }
+/** Beam speed for level n: starts a little slow, speeds up every level */
+function levelSpeed(n) { return 1.8 + 0.35 * (n - 1); }
 
 /** What each level adds: 1 walls only · 2 stars · 3 portals · 4 blinking blocks · 5 sliding bars · 7 a second blinking block */
 function generateLevel(n) {
   const mx = 40 / INT.w, my = 40 / INT.h;      // ~40px clearance around the path
   const tw = 34 / INT.w, th = 34 / INT.h;      // stone thickness as a fraction
   const hb = 0.22;                             // height of sliding / blinking bars
-  const v  = 1.4 + 0.4 * (n - 1);              // starts slow, speeds up every level
+  const v  = levelSpeed(n);
   const spec = { v, speed: speedName(v), src: 0, hole: 0, walls: [], bars: [], stars: [], portals: [] };
 
   // 1. The hidden solution: straight shot, turn at x = a, turn again into the goal.
@@ -724,6 +733,18 @@ function generateLevel(n) {
       reserved.push(sr);
       break;
     }
+  }
+
+  // 3b. One optional bonus star, off the planned path so it takes a detour to grab.
+  //     (Placed before the decoy walls so they leave it clear.)
+  for (let tries = 0; tries < 120; tries++) {
+    const x = n === 1 ? rnd(0.25, 0.75) : rnd(0.18, 0.92), y = rnd(0.10, 0.90);
+    const sr = rectOf(x, y, x, y);
+    const clear = tries < 80 ? 1.6 : 0.8;                 // relax the clearance if the screen is crowded
+    if (reserved.some(q => rectsClash(sr, q, mx * clear, my * clear))) continue;
+    spec.bonus = { x, y };
+    reserved.push(sr);
+    break;
   }
 
   // 4. Decoy stone walls anywhere that is clear.
@@ -842,6 +863,32 @@ function starPath(x, y, r) {
   ctx.closePath();
 }
 
+/** The optional bonus star: a blue star with a sparkle ring and a BONUS tag */
+function drawBonus() {
+  if (!bonus) return;
+  const b = bonus;
+  if (b.flash > 0) b.flash = Math.max(0, b.flash - 0.04);
+  ctx.save();
+  if (b.got) {
+    ctx.globalAlpha = 0.3;  ctx.strokeStyle = C.ink;  ctx.lineWidth = 1.2;
+    starPath(b.x, b.y, 12);  ctx.stroke();
+    if (b.flash > 0) {
+      ctx.globalAlpha = b.flash;  ctx.strokeStyle = '#4FB3D9';  ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(b.x, b.y, 12 + (1 - b.flash) * 30, 0, Math.PI * 2); ctx.stroke();
+    }
+  } else {
+    const r = 14 + Math.sin(frame * 0.12) * 1.8;
+    ctx.strokeStyle = 'rgba(79, 179, 217, 0.55)';  ctx.lineWidth = 1.5;  ctx.setLineDash([3, 4]);
+    ctx.beginPath(); ctx.arc(b.x, b.y, r + 9 + Math.sin(frame * 0.07) * 2, 0, Math.PI * 2); ctx.stroke();  ctx.setLineDash([]);
+    ctx.fillStyle = '#7FD0F0';  ctx.strokeStyle = C.ink;  ctx.lineWidth = 1.8;  ctx.lineJoin = 'round';
+    starPath(b.x, b.y, r);  ctx.fill();  ctx.stroke();
+    ctx.fillStyle = '#2C7FA3';  ctx.font = `bold 11px 'Architects Daughter', cursive`;
+    ctx.textAlign = 'center';  ctx.textBaseline = 'alphabetic';
+    ctx.fillText('BONUS', b.x, b.y + r + 22);
+  }
+  ctx.restore();
+}
+
 function drawStars() {
   for (const s of stars) {
     if (s.flash > 0) s.flash = Math.max(0, s.flash - 0.04);
@@ -919,11 +966,19 @@ function beamMiss() {
   shot.sx = shot.x;  shot.sy = shot.y;
   shot.spark = 1;
   // random rest, so sliding / blinking blocks can't lock-step with the beam (longer random range when the level has any)
-  shot.wait  = levelSpec.bars.length ? 60 + Math.floor(Math.random() * 200) : 90 + Math.floor(Math.random() * 50);
+  shot.wait  = levelSpec.bars.length ? 40 + Math.floor(Math.random() * 110) : 45 + Math.floor(Math.random() * 35);
   play.misses++;
   sfx.miss();
   shake = 9;
+  play.missT = frame;
   burst(shot.x, shot.y, 22, C.accent, 3.5);
+  if (play.misses >= MAX_MISSES) {                       // out of chances: the level is lost
+    play.lost = true;  play.lostT = 0;
+    shot.wait = 0;                                       // no more shots
+    shake = 16;
+    for (const t of tiles) oldTiles.push({ ...t, alpha: 1 });   // the tiles fade away
+    tiles.length = 0;  drawing = null;
+  }
 }
 
 /** If the beam is inside a portal, move it to the other end (same direction) */
@@ -945,6 +1000,11 @@ function portalJump() {
 
 function updateShot() {
   if (play.won) return;                      // level is solved — beam stays in the hole
+  if (play.lost) {                           // out of chances — trail fades, no new shot
+    shot.spark = Math.max(0, shot.spark - 0.03);
+    shot.trail.shift();
+    return;
+  }
   shot.spark = Math.max(0, shot.spark - 0.03);
   if (shot.wait > 0) {                       // beam is resting after a miss
     shot.trail.shift();                      // trail fades out
@@ -979,6 +1039,13 @@ function updateShot() {
     if (!st.got && Math.hypot(shot.x - st.x, shot.y - st.y) < 18) { st.got = true; st.flash = 1; burst(st.x, st.y, 18, '#E0A800', 3.5, 3.5); sfx.star(stars.filter(s => s.got).length - 1); }
   }
 
+  // Bonus star (optional)
+  if (bonus && !bonus.got && Math.hypot(shot.x - bonus.x, shot.y - bonus.y) < 20) {
+    bonus.got = true;  bonus.flash = 1;
+    burst(bonus.x, bonus.y, 22, '#4FB3D9', 3.8, 3.5);
+    sfx.star(3);
+  }
+
   // Goal hole (only opens once every star is collected)
   if (Math.hypot(shot.x - HOLE.x, shot.y - HOLE.y) < HOLE.r) {
     if (starsLeft() > 0) {
@@ -993,6 +1060,7 @@ function updateShot() {
     shot.spark = 1;
     play.won = true;
     play.total += play.misses;
+    recordWin();
     for (const c of [C.accent, '#E0A800', '#3E6FB0']) burst(HOLE.x, HOLE.y, 30, c, 6, 4);
     sfx.win(LEVEL.num === TOTAL_LEVELS);
     return;
@@ -1012,7 +1080,7 @@ function updateShot() {
 
 /** Beam + the spark where it strikes a wall */
 function drawShot() {
-  drawBeamOf(shot, shot.wait === 0);
+  drawBeamOf(shot, shot.wait === 0 && !play.lost);
   if (play.won) shot.spark = 0.6 + 0.4 * Math.sin(frame * 0.15);   // keeps glowing in the hole
   if (shot.spark > 0) {
     const r = 12 + shot.spark * 8;
@@ -1041,7 +1109,7 @@ function burst(x, y, n, col, speed = 3, size = 3) {
 }
 
 /** Change screen with a soft fade-in */
-function goTo(s) { state = s; fade = 1; paused = false; particles.length = 0; shake = 0; }
+function goTo(s) { if (s === 'LEVELS') LS.t0 = frame; state = s; fade = 1; paused = false; particles.length = 0; shake = 0; }
 
 function updateFX() {
   shake = Math.max(0, shake - 0.6);
@@ -1100,13 +1168,47 @@ function clearTiles() {
 // ── WIN STATE ────────────────────────────────────────────────────────────────
 // The level is won when the beam reaches the goal hole. A beam that hits any
 // other part of a wall is a miss and simply fires again.
-const play = { won: false, misses: 0, total: 0, msg: '', msgT: 0 };   // total = misses over all finished levels
+const play = { won: false, lost: false, lostT: 0, misses: 0, total: 0, rating: 0, gotBonus: false, missT: -999, msg: '', msgT: 0 };   // total = misses over all finished levels
+
+// ── PROGRESS (saved in the browser) ──────────────────────────────────────────
+// best[n] = best star rating for level n (0 = not cleared yet).
+// Stars come from the misses (0 misses = 3, 1 miss = 2, 2 misses = 1); the optional
+// bonus star adds one more to make up for a miss (never more than 3).
+const SAVE_KEY = 'refract.progress';
+const progress = { best: new Array(TOTAL_LEVELS + 1).fill(0) };
+
+function loadProgress() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (d && Array.isArray(d.best)) for (let i = 1; i <= TOTAL_LEVELS; i++) progress.best[i] = Math.max(0, Math.min(3, d.best[i] | 0));
+  } catch (e) { /* no saved progress yet, or storage is blocked */ }
+}
+
+function saveProgress() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(progress)); } catch (e) { /* ignore */ }
+}
+
+function ratingFor(misses, gotBonus) { return Math.min(3, (3 - misses) + (gotBonus ? 1 : 0)); }   // 0 misses = 3, 1 = 2, 2 = 1, and the bonus star adds one (max 3)
+function isUnlocked(n)     { return n === 1 || progress.best[n - 1] > 0; }
+function totalStars()      { return progress.best.reduce((a, b) => a + b, 0); }
+
+/** Remember the result of the level just won */
+function recordWin() {
+  const r = ratingFor(play.misses, bonus && bonus.got);
+  play.gotBonus = !!(bonus && bonus.got);
+  play.rating = r;
+  if (r > progress.best[LEVEL.num]) { progress.best[LEVEL.num] = r; saveProgress(); }
+}
+loadProgress();
 
 /** Fresh attempt: no tiles, beam back at the source, counters cleared */
 function resetPlay() {
   clearTiles();
   resetShot();
   play.won    = false;
+  play.lost   = false;
+  play.gotBonus = false;
+  play.lostT  = 0;
   play.misses = 0;
   play.msgT   = 0;
 }
@@ -1123,10 +1225,10 @@ function applyLevel() {
   resetPlay();
 }
 
-function startGame() {
-  LEVEL.num  = 1;
+function startGame(n = 1) {
+  LEVEL.num  = n;
   play.total = 0;
-  levelSpec  = generateLevel(1);
+  levelSpec  = generateLevel(n);
   applyLevel();
   fade = 1;  particles.length = 0;
 }
@@ -1603,7 +1705,7 @@ function drawHowTo() {
     ['Stone walls, sliding bars and blinking blocks absorb the beam.',   false],
     ['Portals: the beam goes in one and comes out the other.',           false],
     ['Collect every star (★) to unlock the goal.',                        false],
-    ['Guide the beam into the GOAL hole on the right wall.',             true ],
+    ['Reach the GOAL hole — you get 3 chances (misses) per level.',     true ],
   ];
   ctx.save();
   lines.forEach(([text, strong], i) => {
@@ -1655,6 +1757,7 @@ function drawPlaying() {
   drawGoalLock();
   drawPortals();
   drawStars();
+  drawBonus();
   drawObstacles();
   if (!play.won && !paused) updateObstacles();
   if (!paused) { updateShot(); updateFX(); }
@@ -1665,15 +1768,17 @@ function drawPlaying() {
   drawHUD();
   drawPlayMessage();
   const b = PLAY_MENU_BTN();
-  drawBtn(b.x, b.y, b.w, b.h, '←  MENU', C.inkMid);
+  drawBtn(b.x, b.y, b.w, b.h, '←  LEVELS', C.inkMid);
+  drawHearts();
   if (play.won) drawWin();
+  else if (play.lost) drawLost();
   else if (paused) drawPause();
 }
 
 // ── WIN SCREEN ───────────────────────────────────────────────────────────────
 const WIN_BTNS = () => ({
-  again: { x: W/2 - 190, y: H/2 + 40, w: 180, h: 50 },
-  menu:  { x: W/2 + 10,  y: H/2 + 40, w: 180, h: 50 },
+  again: { x: W/2 - 190, y: H/2 + 60, w: 180, h: 50 },
+  menu:  { x: W/2 + 10,  y: H/2 + 60, w: 180, h: 50 },
 });
 
 function drawWin() {
@@ -1682,7 +1787,7 @@ function drawWin() {
   ctx.fillRect(0, 0, W, H);
   ctx.restore();
 
-  const pw = 460, ph = 250, px = W/2 - pw/2, py = H/2 - 130;
+  const pw = 460, ph = 270, px = W/2 - pw/2, py = H/2 - 130;
   ctx.save();
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.fillRect(px, py, pw, ph);
@@ -1705,13 +1810,92 @@ function drawWin() {
   if (LEVEL.num === TOTAL_LEVELS) {
     ctx.fillText(`All ${TOTAL_LEVELS} levels cleared · ${play.total} miss${play.total === 1 ? '' : 'es'} in total`, W/2, py + 135);
   } else {
-    ctx.fillText(m === 0 ? `Level ${LEVEL.num} — perfect, first shot!` : `Level ${LEVEL.num} — solved after ${m} miss${m === 1 ? '' : 'es'}`, W/2, py + 135);
+    ctx.font = `20px 'Patrick Hand', cursive`;
+    ctx.fillText(`Level ${LEVEL.num}  ·  ${m === 0 ? 'no misses' : m + ' miss' + (m === 1 ? '' : 'es')}  ·  bonus star ${play.gotBonus ? 'collected!' : 'missed'}`, W/2, py + 135);
   }
   ctx.restore();
 
+  // Star rating for this level
+  for (let i = 0; i < 3; i++) {
+    ctx.save();
+    ctx.lineJoin = 'round';  ctx.lineWidth = 1.8;  ctx.strokeStyle = C.ink;
+    ctx.fillStyle = i < play.rating ? 'rgba(235, 185, 60, 0.95)' : 'rgba(0,0,0,0.05)';
+    ctx.globalAlpha = i < play.rating ? 1 : 0.5;
+    starPath(W/2 + (i - 1) * 40, py + 165, 15);
+    ctx.fill();  ctx.stroke();
+    ctx.restore();
+  }
+
   const B = WIN_BTNS();
   drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, LEVEL.num === TOTAL_LEVELS ? '↻   PLAY AGAIN' : 'NEXT LEVEL   →', C.accent);
-  drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '←   MENU',       C.inkMid);
+  drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '≡   LEVELS',     C.inkMid);
+}
+
+/** A heart outline centred on (x, y), s = half width */
+function heartPath(x, y, s) {
+  ctx.beginPath();
+  ctx.moveTo(x, y + s * 0.9);
+  ctx.bezierCurveTo(x - s * 1.5, y - s * 0.1, x - s * 0.8, y - s * 1.1, x, y - s * 0.35);
+  ctx.bezierCurveTo(x + s * 0.8, y - s * 1.1, x + s * 1.5, y - s * 0.1, x, y + s * 0.9);
+  ctx.closePath();
+}
+
+/** The chances left, as big hearts in the top bar; the one just lost pops */
+function drawHearts() {
+  const left = Math.max(0, MAX_MISSES - play.misses), hx = PLAY.x + 160, hy = 24;
+  ctx.save();
+  ctx.lineJoin = 'round';
+  for (let i = 0; i < MAX_MISSES; i++) {
+    const x = hx + i * 38;
+    ctx.lineWidth = 2;  ctx.strokeStyle = C.ink;
+    ctx.fillStyle = i < left ? C.accent : 'rgba(0,0,0,0.05)';
+    ctx.globalAlpha = i < left ? 1 : 0.45;
+    heartPath(x, hy, 12);  ctx.fill();  ctx.stroke();
+  }
+  const t = (frame - play.missT) / 28;
+  if (t >= 0 && t < 1 && play.misses > 0) {                       // the lost heart breaks away
+    ctx.globalAlpha = 1 - t;  ctx.strokeStyle = C.accent;  ctx.lineWidth = 2.5;
+    heartPath(hx + left * 38, hy - t * 14, 12 * (1 + t * 0.9));  ctx.stroke();
+  }
+  ctx.restore();
+  ctx.save();
+  ctx.fillStyle = C.inkMid;  ctx.font = `15px 'Patrick Hand', cursive`;
+  ctx.textAlign = 'left';  ctx.textBaseline = 'middle';
+  ctx.fillText(`${left} chance${left === 1 ? '' : 's'} left`, hx + MAX_MISSES * 38 - 8, hy + 1);
+  ctx.restore();
+}
+
+/** Shown after the 3rd miss: tiles are gone, try the same level again or go back to the levels */
+function drawLost() {
+  play.lostT++;
+  const a = Math.min(1, Math.max(0, (play.lostT - 25) / 30));      // short pause, then fade in
+  if (a <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.fillStyle = 'rgba(246, 241, 233, 0.65)';
+  ctx.fillRect(0, 0, W, H);
+
+  const pw = 460, ph = 270, px = W/2 - pw/2, py = H/2 - 130;
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillRect(px, py, pw, ph);
+  sketchRect(px, py, pw, ph, 2.5, C.ink);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = C.accent;
+  ctx.font = `bold 72px 'Caveat', cursive`;
+  ctx.fillText('GAME OVER', W/2, py + 82);
+  wavyLine(W/2 - 110, W/2 + 110, py + 96, 3, C.accent);
+
+  ctx.fillStyle = C.inkMid;
+  ctx.font = `22px 'Patrick Hand', cursive`;
+  ctx.fillText(`Level ${LEVEL.num} — all ${MAX_MISSES} chances used`, W/2, py + 135);
+  ctx.font = `18px 'Patrick Hand', cursive`;
+  ctx.fillText('Your tiles were cleared. Same level, fresh start.', W/2, py + 166);
+
+  const B = WIN_BTNS();
+  drawBtn(B.again.x, B.again.y, B.again.w, B.again.h, '↻   TRY AGAIN', C.accent);
+  drawBtn(B.menu.x,  B.menu.y,  B.menu.w,  B.menu.h,  '≡   LEVELS',    C.inkMid);
+  ctx.restore();
 }
 
 /** Full play area: interior fill + hatched walls + border */
@@ -1960,13 +2144,14 @@ function drawHUD() {
 
   ctx.save();
   ctx.fillStyle    = C.inkMid;
-  ctx.font         = `13px 'Patrick Hand', cursive`;
+  ctx.font         = `16px 'Patrick Hand', cursive`;
   ctx.textBaseline = 'top';
 
   // Left: level
   ctx.textAlign = 'left';
-  ctx.fillText(`LEVEL  ${LEVEL.num}/${TOTAL_LEVELS}   ·   MISSES: ${play.misses}` +
-    (stars.length ? `   ·   STARS: ${stars.length - starsLeft()}/${stars.length}` : ''), hx, hy);
+  ctx.fillText(`LEVEL  ${LEVEL.num}/${TOTAL_LEVELS}` +
+    (stars.length ? `   ·   STARS: ${stars.length - starsLeft()}/${stars.length}` : '') +
+    (bonus ? `   ·   BONUS: ${bonus.got ? '★' : '☆'}` : ''), hx, hy);
 
   // Centre: speed
   ctx.textAlign = 'center';
@@ -1976,7 +2161,7 @@ function drawHUD() {
   // Right: tiles in use + length limit + ESC tip
   ctx.textAlign = 'right';
   ctx.fillStyle = C.inkMid;
-  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   P = pause   ·   ESC = menu   ·   M = ${sfx.isMuted() ? 'sound off' : 'sound on'}`, hx + hw, hy);
+  ctx.fillText(`TILES: ${tiles.length}/${LEVEL.tiles}   ·   MAX LENGTH: ${LEVEL.maxLen}   ·   P = pause   ·   ESC = levels   ·   M = ${sfx.isMuted() ? 'sound off' : 'sound on'}`, hx + hw, hy);
   ctx.restore();
 }
 
@@ -2044,6 +2229,371 @@ function drawBlueprintAnnotations() {
   ctx.restore();
 }
 
+// ── LEVEL SELECT SCREEN ──────────────────────────────────────────────────────
+// 8 cards on a drafting sheet. A level opens once the one before it is cleared;
+// each card shows the best star rating. A laser loops around the cards.
+const LEVEL_INFO = [
+  null,
+  { name: 'FIRST REFLECTION', desc: 'Bounce the beam off a mirror into the goal' },
+  { name: 'STELLAR PATH', desc: 'Touch every star to open the goal' },
+  { name: 'PORTAL DRIFT', desc: 'Go in one portal, come out the other' },
+  { name: 'BLINK CHRONO', desc: 'Time the beam past the blinking blocks' },
+  { name: 'SLIDING PISTON', desc: 'Dodge the sliding bars' },
+  { name: 'RUSH HOUR', desc: 'Bars and blocks, at a faster speed' },
+  { name: 'DOUBLE BLINK', desc: 'Two blinking blocks taking turns' },
+  { name: 'MASTER BLUEPRINT', desc: 'Every mechanic at once' },
+];
+const LS = { hover: 0, note: '', noteT: 0, d: 0, t0: 0, resetT: 0 };   // resetT: frames left in which a 2nd click confirms the reset    // hovered card, "locked" note, beam distance
+
+function levelRects() {
+  const gap  = 28;
+  const gw   = Math.min(W - 100, 1100);
+  const cw   = (gw - gap * 3) / 4;
+  const area = { top: 168, bottom: H - 108 };
+  const ch   = Math.max(170, Math.min(cw * 1.08, (area.bottom - area.top - gap) / 2));
+  const top  = area.top + Math.max(0, (area.bottom - area.top - (2 * ch + gap)) / 2);
+  const gx   = (W - gw) / 2;
+  const cards = [];
+  for (let i = 0; i < TOTAL_LEVELS; i++) {
+    cards.push({ n: i + 1, x: gx + (i % 4) * (cw + gap), y: top + Math.floor(i / 4) * (ch + gap), w: cw, h: ch });
+  }
+  const by = H - 70;
+  return {
+    cards, gx, gw, gap, top, ch,
+    back:  { x: gx,            y: by, w: 200, h: 46 },
+    sound: { x: gx + gw - 170, y: by, w: 170, h: 46 },
+    stars: { x: gx + 220,      y: by, w: gw - 220 - 190, h: 46 },
+    reset: { x: gx + gw - 190, y: 34, w: 190, h: 38 },
+  };
+}
+
+/** Little hand-drawn picture of what each level is about */
+function drawLevelIcon(n, cx, cy, s) {
+  ctx.save();
+  ctx.lineCap = 'round';  ctx.lineJoin = 'round';
+  ctx.strokeStyle = C.ink;  ctx.lineWidth = 2;
+  const t = frame * 0.04;
+  if (n === 1) {                                   // mirror + beam
+    // mirror: thick glass line with a shine, on a little stand
+    ctx.lineWidth = 4.5;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.18, cy + s * 0.55); ctx.lineTo(cx + s * 0.22, cy - s * 0.55); ctx.stroke();
+    ctx.strokeStyle = 'rgba(120, 170, 220, 0.9)';  ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.14, cy + s * 0.45); ctx.lineTo(cx + s * 0.18, cy - s * 0.45); ctx.stroke();
+    ctx.strokeStyle = C.ink;  ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.18, cy + s * 0.55); ctx.lineTo(cx - s * 0.4, cy + s * 0.7); ctx.moveTo(cx - s * 0.18, cy + s * 0.55); ctx.lineTo(cx + s * 0.05, cy + s * 0.7); ctx.stroke();
+    // beam in, beam out (the outgoing part pulses), spark on the mirror
+    const hx = cx + s * 0.02, hy = cy + s * 0.02;
+    ctx.strokeStyle = C.accent;  ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(cx - s * 1.1, hy); ctx.lineTo(hx, hy); ctx.lineTo(hx + s * 0.1 + Math.sin(frame * 0.12) * 2, cy - s * 1.0); ctx.stroke();
+    const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, s * 0.3);
+    g.addColorStop(0, 'rgba(255, 200, 130, 0.9)');  g.addColorStop(1, 'rgba(192, 57, 43, 0)');
+    ctx.fillStyle = g;  ctx.beginPath(); ctx.arc(hx, hy, s * 0.3, 0, Math.PI * 2); ctx.fill();
+  } else if (n === 2) {                            // stars
+    ctx.fillStyle = 'rgba(235, 185, 60, 0.95)';  ctx.lineWidth = 1.8;
+    starPath(cx, cy, s * 0.55);                     ctx.fill(); ctx.stroke();
+    starPath(cx - s * 0.8, cy - s * 0.25, s * 0.3); ctx.fill(); ctx.stroke();
+    starPath(cx + s * 0.8, cy + s * 0.2, s * 0.3);  ctx.fill(); ctx.stroke();
+  } else if (n === 3) {                            // portals
+    for (const [px, col] of [[cx - s * 0.65, '#2A9DB8'], [cx + s * 0.65, '#7A52C7']]) {
+      ctx.strokeStyle = col;
+      for (let k = 0; k < 3; k++) {
+        ctx.lineWidth = 2.4 - k * 0.6;  ctx.globalAlpha = 1 - k * 0.25;
+        ctx.beginPath(); ctx.ellipse(px, cy, s * (0.2 - k * 0.04) + Math.sin(t * 2 + k) * 1.2, s * (0.5 - k * 0.1), 0, 0, Math.PI * 2); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
+  } else if (n === 4) {                            // clock
+    ctx.beginPath(); ctx.arc(cx, cy, s * 0.6, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(t * 3) * s * 0.42, cy + Math.sin(t * 3) * s * 0.42); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(t * 0.5) * s * 0.28, cy + Math.sin(t * 0.5) * s * 0.28); ctx.stroke();
+  } else if (n === 5) {                            // piston: bar slides along a track
+    const o = Math.sin(t * 1.5) * s * 0.3;
+    ctx.setLineDash([3, 4]);  ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.8, cy); ctx.lineTo(cx + s * 0.8, cy); ctx.stroke();  ctx.setLineDash([]);
+    ctx.lineWidth = 2;  ctx.fillStyle = 'rgba(62, 111, 176, 0.35)';
+    ctx.fillRect(cx - s * 0.2 + o, cy - s * 0.5, s * 0.4, s);  ctx.strokeRect(cx - s * 0.2 + o, cy - s * 0.5, s * 0.4, s);
+  } else if (n === 6) {                            // bar + block
+    const o = Math.sin(t * 2) * s * 0.3;
+    ctx.fillStyle = 'rgba(62, 111, 176, 0.35)';
+    ctx.fillRect(cx - s * 0.7, cy - s * 0.4 + o, s * 0.35, s * 0.8);  ctx.strokeRect(cx - s * 0.7, cy - s * 0.4 + o, s * 0.35, s * 0.8);
+    ctx.setLineDash(Math.sin(t * 3) > 0 ? [] : [4, 3]);  ctx.strokeStyle = C.accent;  ctx.fillStyle = 'rgba(192, 57, 43, 0.25)';
+    ctx.fillRect(cx + s * 0.25, cy - s * 0.4, s * 0.45, s * 0.8);  ctx.strokeRect(cx + s * 0.25, cy - s * 0.4, s * 0.45, s * 0.8);
+  } else if (n === 7) {                            // two blinking blocks, taking turns
+    for (let k = 0; k < 2; k++) {
+      const on = Math.sin(t * 3 + k * Math.PI) > 0;
+      ctx.setLineDash(on ? [] : [4, 3]);  ctx.strokeStyle = C.accent;  ctx.fillStyle = on ? 'rgba(192, 57, 43, 0.3)' : 'rgba(192, 57, 43, 0.05)';
+      const bx = cx + (k ? s * 0.12 : -s * 0.68);
+      ctx.fillRect(bx, cy - s * 0.4, s * 0.56, s * 0.8);  ctx.strokeRect(bx, cy - s * 0.4, s * 0.56, s * 0.8);
+    }
+  } else {                                         // master blueprint: a bit of everything
+    ctx.strokeRect(cx - s * 0.9, cy - s * 0.6, s * 1.8, s * 1.2);
+    ctx.lineWidth = 1;  ctx.globalAlpha = 0.5;
+    ctx.beginPath(); ctx.moveTo(cx - s * 0.9, cy); ctx.lineTo(cx + s * 0.9, cy); ctx.moveTo(cx, cy - s * 0.6); ctx.lineTo(cx, cy + s * 0.6); ctx.stroke();
+    ctx.globalAlpha = 1;  ctx.lineWidth = 1.6;
+    ctx.fillStyle = 'rgba(235, 185, 60, 0.95)';  starPath(cx - s * 0.45, cy - s * 0.3, s * 0.2);  ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = '#7A52C7';  ctx.beginPath(); ctx.ellipse(cx + s * 0.45, cy - s * 0.3, s * 0.1, s * 0.22, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = C.accent;   ctx.strokeRect(cx - s * 0.6, cy + s * 0.12, s * 0.3, s * 0.34);
+    ctx.fillStyle = 'rgba(62, 111, 176, 0.4)';  ctx.fillRect(cx + s * 0.25, cy + s * 0.1, s * 0.4, s * 0.12);
+  }
+  ctx.restore();
+}
+
+function drawPadlock(x, y, s) {
+  ctx.save();
+  ctx.strokeStyle = C.inkMid;  ctx.fillStyle = 'rgba(255,255,255,0.9)';  ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.arc(x, y - s * 0.25, s * 0.3, Math.PI, 0); ctx.stroke();
+  ctx.fillRect(x - s * 0.45, y - s * 0.2, s * 0.9, s * 0.7);  ctx.strokeRect(x - s * 0.45, y - s * 0.2, s * 0.9, s * 0.7);
+  ctx.fillStyle = C.inkMid;
+  ctx.beginPath(); ctx.arc(x, y + s * 0.08, s * 0.08, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(x - 1.5, y + s * 0.08, 3, s * 0.2);
+  ctx.restore();
+}
+
+const LV_COL = [null, '#C0392B', '#E0A800', '#3E6FB0', '#7A52C7', '#2A9DB8', '#D2691E', '#B03A7A', '#2E7D4F'];
+
+function drawLevelCard(c, hov) {
+  const open = isUnlocked(c.n), best = progress.best[c.n], info = LEVEL_INFO[c.n], col = LV_COL[c.n];
+  const cleared = best > 0;
+  const current = open && !cleared && (c.n === 1 || progress.best[c.n - 1] > 0);   // the level to play next
+  const lift = hov && open ? -6 : 0;
+
+  // Slide-in when the screen opens (staggered)
+  const e0 = Math.max(0, Math.min(1, (frame - LS.t0 - c.n * 4) / 24)), e = 1 - Math.pow(1 - e0, 3);
+  if (e <= 0) return;
+  const x = c.x, y = c.y + lift + (1 - e) * 46, w = c.w, h = c.h;
+  const tilt = hov && open ? 0 : (((c.n * 37) % 7) - 3) * 0.004;
+
+  ctx.save();
+  ctx.globalAlpha = e;
+  ctx.translate(x + w / 2, y + h / 2);  ctx.rotate(tilt);  ctx.translate(-(x + w / 2), -(y + h / 2));
+
+  // Paper card (glows when it is the next level to play)
+  ctx.save();
+  ctx.shadowColor = current ? `rgba(192, 57, 43, ${0.35 + 0.2 * Math.sin(frame * 0.08)})` : 'rgba(0,0,0,0.18)';
+  ctx.shadowBlur  = current ? 18 : (hov && open ? 16 : 6);
+  ctx.shadowOffsetX = current ? 0 : 4;  ctx.shadowOffsetY = current ? 0 : 5;
+  ctx.fillStyle = open ? '#FFFFFF' : '#E7E0D2';
+  ctx.fillRect(x, y, w, h);
+  ctx.restore();
+
+  // Locked cards get a pencil hatch
+  if (!open) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+    ctx.strokeStyle = 'rgba(80, 70, 50, 0.10)';  ctx.lineWidth = 1;
+    for (let k = -h; k < w; k += 11) { ctx.beginPath(); ctx.moveTo(x + k, y + h); ctx.lineTo(x + k + h, y); ctx.stroke(); }
+    ctx.restore();
+  } else {
+    // soft colour wash behind the header
+    ctx.fillStyle = col + '1F';
+    ctx.fillRect(x, y, w, 66);
+  }
+  sketchRect(x, y, w, h, current || (hov && open) ? 3 : 2, open ? (current ? C.accent : hov ? col : C.ink) : C.inkLight);
+
+  // Washi tape on top
+  ctx.save();
+  ctx.translate(x + w / 2, y + 2);  ctx.rotate(-0.05);
+  ctx.fillStyle = open ? col + '66' : 'rgba(120,110,90,0.28)';
+  ctx.fillRect(-30, -9, 60, 18);
+  ctx.strokeStyle = 'rgba(0,0,0,0.12)';  ctx.lineWidth = 1;  ctx.strokeRect(-30, -9, 60, 18);
+  ctx.restore();
+
+  // Header: level number + speed chip, then the name
+  ctx.save();
+  ctx.globalAlpha = e * (open ? 1 : 0.6);
+  ctx.textAlign = 'left';  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = 'rgba(55, 95, 155, 0.9)';
+  ctx.font = `13px 'Patrick Hand', cursive`;
+  ctx.fillText(`LEVEL 0${c.n}`, x + 12, y + 30);
+  const sp = speedName(levelSpeed(c.n));
+  ctx.font = `bold 11px 'Architects Daughter', cursive`;
+  const sw = ctx.measureText(sp).width + 12;
+  ctx.strokeStyle = open ? col : C.inkLight;  ctx.lineWidth = 1.4;
+  ctx.strokeRect(x + w - 12 - sw, y + 18, sw, 18);
+  ctx.fillStyle = open ? col : C.inkLight;  ctx.textAlign = 'center';
+  ctx.fillText(sp, x + w - 12 - sw / 2, y + 31);
+  ctx.textAlign = 'left';  ctx.fillStyle = C.ink;
+  ctx.font = `bold 17px 'Architects Daughter', cursive`;
+  ctx.fillText(info.name, x + 12, y + 56, w - 24);
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(55, 95, 155, 0.45)';  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x + 8, y + 66); ctx.lineTo(x + w - 8, y + 66); ctx.stroke();
+
+  // Picture area
+  const ay = y + 68, ah = h - 68 - 52;
+  if (open) {
+    ctx.save();
+    ctx.beginPath(); ctx.rect(x + 4, ay, w - 8, ah); ctx.clip();
+    drawLevelIcon(c.n, x + w / 2, ay + ah / 2, Math.min(ah * 0.46, w * 0.24));
+    ctx.restore();
+  } else {
+    drawPadlock(x + w / 2, ay + ah / 2 - 2, Math.min(ah * 0.6, 54));
+  }
+
+  // Stamps
+  if (cleared) {
+    ctx.save();
+    ctx.translate(x + w - 56, ay + ah - 22);  ctx.rotate(-0.28);
+    const gold = best === 3;
+    ctx.strokeStyle = gold ? '#B8860B' : C.accent;  ctx.fillStyle = ctx.strokeStyle;
+    ctx.globalAlpha = e * 0.8;  ctx.lineWidth = 2.2;
+    ctx.strokeRect(-38, -12, 76, 24);
+    ctx.font = `bold 14px 'Architects Daughter', cursive`;  ctx.textAlign = 'center';  ctx.textBaseline = 'middle';
+    ctx.fillText(gold ? 'PERFECT' : 'CLEARED', 0, 1);
+    ctx.restore();
+  }
+  if (current) {
+    ctx.save();
+    ctx.translate(x + w - 8, y + 6);  ctx.rotate(0.35);
+    ctx.fillStyle = C.accent;  ctx.fillRect(-26, -10, 52, 20);
+    ctx.fillStyle = '#fff';  ctx.font = `bold 12px 'Architects Daughter', cursive`;
+    ctx.textAlign = 'center';  ctx.textBaseline = 'middle';
+    ctx.fillText('NEXT UP', 0, 1);
+    ctx.restore();
+  }
+
+  // Footer: stars + button
+  const fy = y + h - 42;
+  ctx.strokeStyle = 'rgba(55, 95, 155, 0.25)';  ctx.lineWidth = 1;  ctx.setLineDash([3, 4]);
+  ctx.beginPath(); ctx.moveTo(x + 8, fy - 4); ctx.lineTo(x + w - 8, fy - 4); ctx.stroke();  ctx.setLineDash([]);
+  for (let i = 0; i < 3; i++) {
+    ctx.save();
+    ctx.lineJoin = 'round';  ctx.lineWidth = 1.6;  ctx.strokeStyle = open ? C.ink : C.inkLight;
+    ctx.fillStyle = i < best ? 'rgba(235, 185, 60, 0.98)' : 'rgba(0,0,0,0.04)';
+    starPath(x + 22 + i * 27, fy + 20, 11);
+    ctx.fill();  ctx.stroke();
+    ctx.restore();
+  }
+  if (open) {
+    const bw = 92, bh = 30, bx = x + w - bw - 10, by = fy + 5;
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';  ctx.fillRect(bx + 2, by + 2, bw, bh);
+    ctx.fillStyle = hov ? C.ink : (current ? C.accent : col);  ctx.fillRect(bx, by, bw, bh);
+    ctx.fillStyle = '#fff';  ctx.font = `bold 14px 'Architects Daughter', cursive`;
+    ctx.textAlign = 'center';  ctx.textBaseline = 'middle';
+    ctx.fillText(cleared ? '↻ REPLAY' : '▶ LAUNCH', bx + bw / 2, by + bh / 2 + 1);
+    ctx.restore();
+  } else {
+    ctx.save();
+    ctx.fillStyle = C.inkMid;  ctx.font = `14px 'Patrick Hand', cursive`;
+    ctx.textAlign = 'right';  ctx.textBaseline = 'middle';
+    ctx.fillText(`clear level ${c.n - 1} first`, x + w - 12, fy + 20);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/** A laser loops around the grid, bouncing off a small tile at each corner */
+function drawLevelBeam(R) {
+  const m = 20;
+  const x1 = R.gx - m, x2 = R.gx + R.gw + m, y1 = R.top - m, y2 = R.top + 2 * R.ch + R.gap + m;
+  const pts = [[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]];
+  const segs = [];  let total = 0;
+  for (let i = 0; i < 4; i++) { const l = Math.hypot(pts[i+1][0] - pts[i][0], pts[i+1][1] - pts[i][1]); segs.push(l); total += l; }
+  const at = d => {
+    d = ((d % total) + total) % total;
+    for (let i = 0; i < 4; i++) {
+      if (d <= segs[i]) { const f = d / segs[i]; return [pts[i][0] + (pts[i+1][0] - pts[i][0]) * f, pts[i][1] + (pts[i+1][1] - pts[i][1]) * f]; }
+      d -= segs[i];
+    }
+    return pts[0];
+  };
+  LS.d += 4.2;
+  const tail = 220;
+
+  ctx.save();
+  // Faint guide path
+  ctx.strokeStyle = 'rgba(90, 130, 200, 0.22)';  ctx.lineWidth = 1;  ctx.setLineDash([4, 6]);
+  ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);  ctx.setLineDash([]);
+  // Corner tiles: "/" at top-left and bottom-right, "\" at top-right and bottom-left
+  ctx.strokeStyle = C.ink;  ctx.lineWidth = 3;  ctx.lineCap = 'round';
+  pts.slice(0, 4).forEach(([px, py], i) => {
+    const dir = (i === 0 || i === 2) ? -1 : 1;
+    ctx.beginPath(); ctx.moveTo(px - 9, py - 9 * dir); ctx.lineTo(px + 9, py + 9 * dir); ctx.stroke();
+  });
+  // Beam trail
+  ctx.lineWidth = 3;
+  for (let k = 0; k < tail; k += 6) {
+    const [ax, ay] = at(LS.d - k), [bx, by] = at(LS.d - k - 6);
+    if (Math.hypot(ax - bx, ay - by) > 12) continue;       // don't draw across a corner jump
+    ctx.strokeStyle = `rgba(192, 57, 43, ${(1 - k / tail) * 0.85})`;
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+  const [hx, hy] = at(LS.d);
+  const g = ctx.createRadialGradient(hx, hy, 0, hx, hy, 16);
+  g.addColorStop(0, 'rgba(255, 190, 120, 0.95)');  g.addColorStop(0.5, 'rgba(220, 80, 40, 0.5)');  g.addColorStop(1, 'rgba(192, 57, 43, 0)');
+  ctx.fillStyle = g;  ctx.beginPath(); ctx.arc(hx, hy, 16, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawLevels() {
+  const R = levelRects();
+  drawRulers();
+  drawDoodles();
+
+  // Title block
+  const tw = 540, th = 82, tx = W / 2 - tw / 2, ty = 30;
+  ctx.save();  ctx.fillStyle = 'rgba(255,255,255,0.88)';  ctx.fillRect(tx, ty, tw, th);  ctx.restore();
+  sketchRect(tx, ty, tw, th, 2.5, C.ink);
+  ctx.save();
+  ctx.textAlign = 'center';  ctx.fillStyle = C.ink;
+  ctx.font = `bold 32px 'Architects Daughter', cursive`;
+  ctx.fillText('REFRACT // STAGE SELECT', W / 2, ty + 37);
+  ctx.strokeStyle = C.inkMid;  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(tx + 8, ty + 48); ctx.lineTo(tx + tw - 8, ty + 48); ctx.stroke();
+  ctx.fillStyle = C.inkMid;  ctx.font = `16px 'Patrick Hand', cursive`;
+  ctx.textAlign = 'left';   ctx.fillText('SHEET NO.  02 - LEVEL ARCHIVES', tx + 12, ty + 68);
+  ctx.textAlign = 'right';  ctx.fillText('SCALE 1:1', tx + tw - 12, ty + 68);
+  ctx.restore();
+  ctx.save();
+  ctx.textAlign = 'center';  ctx.fillStyle = C.inkMid;  ctx.font = `19px 'Patrick Hand', cursive`;
+  ctx.fillText('pick a sheet  ·  clear a level to unlock the next  ·  3 stars = no misses  ·  the bonus star wins back a star', W / 2, ty + th + 28);
+  ctx.restore();
+  wavyLine(W / 2 - 150, W / 2 + 150, ty + th + 38, 3, C.accent);
+
+  drawLevelBeam(R);
+
+  LS.hover = 0;
+  for (const c of R.cards) if (inRect(mouse, c)) LS.hover = c.n;
+  for (const c of R.cards) drawLevelCard(c, LS.hover === c.n);
+
+  // Bottom bar
+  drawBtn(R.back.x, R.back.y, R.back.w, R.back.h, '←   MAIN MENU', C.inkMid);
+  drawBtn(R.sound.x, R.sound.y, R.sound.w, R.sound.h, sfx.isMuted() ? '♪  SOUND OFF' : '♪  SOUND ON', C.inkMid);
+  const sb = R.stars;
+  ctx.save();  ctx.fillStyle = 'rgba(255,255,255,0.82)';  ctx.fillRect(sb.x, sb.y, sb.w, sb.h);  ctx.restore();
+  ctx.save();  ctx.fillStyle = 'rgba(235, 185, 60, 0.4)';  ctx.fillRect(sb.x + 3, sb.y + 3, (sb.w - 6) * totalStars() / (TOTAL_LEVELS * 3), sb.h - 6);  ctx.restore();
+  sketchRect(sb.x, sb.y, sb.w, sb.h, 2, C.ink);
+  ctx.save();
+  ctx.textAlign = 'center';  ctx.textBaseline = 'middle';  ctx.fillStyle = C.ink;
+  ctx.font = `bold 20px 'Architects Daughter', cursive`;
+  ctx.fillText(`★  TOTAL STARS: ${totalStars()}/${TOTAL_LEVELS * 3}`, sb.x + sb.w / 2, sb.y + sb.h / 2 + 1);
+  ctx.restore();
+
+  // Reset progress: first click arms it, a second click within 3 seconds confirms
+  if (LS.resetT > 0) LS.resetT--;
+  const armed = LS.resetT > 0;
+  drawBtn(R.reset.x, R.reset.y, R.reset.w, R.reset.h, armed ? 'SURE?  CLICK AGAIN' : '↺  RESET PROGRESS', armed ? C.accent : C.inkLight);
+
+  // What the hovered level is about (the "locked" note takes its place when shown)
+  if (LS.hover && LS.noteT <= 0) {
+    ctx.save();
+    ctx.textAlign = 'center';  ctx.fillStyle = C.inkMid;  ctx.font = `20px 'Patrick Hand', cursive`;
+    ctx.fillText(`LEVEL 0${LS.hover}  —  ${LEVEL_INFO[LS.hover].desc}`, W / 2, H - 84);
+    ctx.restore();
+  }
+
+  // "locked" note
+  if (LS.noteT > 0) {
+    LS.noteT--;
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, LS.noteT / 30);
+    ctx.textAlign = 'center';  ctx.fillStyle = C.accent;  ctx.font = `bold 22px 'Patrick Hand', cursive`;
+    ctx.fillText(LS.note, W / 2, H - 84);
+    ctx.restore();
+  }
+}
+
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 function loop() {
   frame++;
@@ -2064,6 +2614,8 @@ function loop() {
     drawRulers();
     drawDoodles();
     drawHowTo();
+  } else if (state === 'LEVELS') {
+    drawLevels();
   } else if (state === 'PLAYING') {
     drawDoodles();
     drawPlaying();
@@ -2073,7 +2625,7 @@ function loop() {
   let cur = 'default';
   if (state === 'PLAYING') {
     const B = WIN_BTNS();
-    if (play.won) cur = (inRect(mouse, B.again) || inRect(mouse, B.menu)) ? 'pointer' : 'default';
+    if (play.won || (play.lost && play.lostT > 55)) cur = (inRect(mouse, B.again) || inRect(mouse, B.menu)) ? 'pointer' : 'default';
     else cur = inRect(mouse, PLAY_MENU_BTN()) ? 'pointer' : 'crosshair';
   }
   else if (state === 'MENU') {
@@ -2083,6 +2635,9 @@ function loop() {
     else if (inRect(mouse, R.play) || inRect(mouse, R.how)) cur = 'pointer';
   } else if (state === 'HOWTO') {
     if (inRect(mouse, HOWTO_BACK())) cur = 'pointer';
+  } else if (state === 'LEVELS') {
+    const R = levelRects();
+    if (inRect(mouse, R.back) || inRect(mouse, R.sound) || inRect(mouse, R.reset) || (LS.hover && isUnlocked(LS.hover))) cur = 'pointer';
   }
   drawFade();
   canvas.style.cursor = cur;
@@ -2118,7 +2673,7 @@ canvas.addEventListener('pointerdown', e => {
   const p = toCanvas(e);
   mouse.x = p.x;  mouse.y = p.y;
   if (state === 'PLAYING') {
-    if (!play.won && !paused) startTile(p.x, p.y);
+    if (!play.won && !play.lost && !paused) startTile(p.x, p.y);
     if (drawing) canvas.setPointerCapture(e.pointerId);
     return;
   }
@@ -2137,19 +2692,39 @@ canvas.addEventListener('click', e => {
   const p = toCanvas(e);
   if (state === 'MENU') {
     const R = menuRects();
-    if (inRect(p, R.play)) { sfx.click(); startGame(); goTo('PLAYING'); }
+    if (inRect(p, R.play)) { sfx.click(); goTo('LEVELS'); }
     else if (inRect(p, R.how)) { sfx.click(); goTo('HOWTO'); }
   } else if (state === 'HOWTO') {
     if (inRect(p, HOWTO_BACK())) { sfx.click(); goTo('MENU'); }
+  } else if (state === 'LEVELS') {
+    const R = levelRects();
+    if (inRect(p, R.back)) { sfx.click(); goTo('MENU'); }
+    else if (inRect(p, R.sound)) sfx.toggle();
+    else if (inRect(p, R.reset)) {
+      if (LS.resetT > 0) {
+        progress.best.fill(0);  saveProgress();  LS.resetT = 0;
+        LS.note = 'Progress cleared';  LS.noteT = 120;  sfx.click();
+      } else { LS.resetT = 180;  sfx.click(); }
+    }
+    else for (const c of R.cards) if (inRect(p, c)) {
+      if (isUnlocked(c.n)) { sfx.click(); startGame(c.n); goTo('PLAYING'); }
+      else { LS.note = `Clear level ${c.n - 1} first!`; LS.noteT = 120; sfx.denied(); }
+    }
   } else if (state === 'PLAYING') {
     if (paused) { paused = false; return; }
     if (play.won) {
       const B = WIN_BTNS();
       if (inRect(p, B.again)) { sfx.click(); if (LEVEL.num === TOTAL_LEVELS) startGame(); else nextLevel(); }
-      else if (inRect(p, B.menu)) { sfx.click(); goTo('MENU'); }
+      else if (inRect(p, B.menu)) { sfx.click(); goTo('LEVELS'); }
+    } else if (play.lost) {
+      if (play.lostT > 55) {                                       // buttons appear once the overlay has faded in
+        const B = WIN_BTNS();
+        if (inRect(p, B.again)) { sfx.click(); applyLevel(); fade = 1; particles.length = 0; }
+        else if (inRect(p, B.menu)) { sfx.click(); goTo('LEVELS'); }
+      }
     } else if (inRect(p, PLAY_MENU_BTN())) {
       sfx.click();
-      goTo('MENU');
+      goTo('LEVELS');
     }
   }
 });
@@ -2157,11 +2732,11 @@ canvas.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   sfx.unlock();
   if (e.key === 'm' || e.key === 'M') sfx.toggle();
-  if ((e.key === 'p' || e.key === 'P' || e.key === ' ') && state === 'PLAYING' && !play.won) { paused = !paused; drawing = null; e.preventDefault(); }
-  if (e.key === 'Escape' && state !== 'MENU') { drawing = null; goTo('MENU'); }
+  if ((e.key === 'p' || e.key === 'P' || e.key === ' ') && state === 'PLAYING' && !play.won && !play.lost) { paused = !paused; drawing = null; e.preventDefault(); }
+  if (e.key === 'Escape' && state !== 'MENU') { drawing = null; goTo(state === 'PLAYING' ? 'LEVELS' : 'MENU'); }
 });
 
-window.addEventListener('blur', () => { if (state === 'PLAYING' && !play.won) { paused = true; drawing = null; } });
+window.addEventListener('blur', () => { if (state === 'PLAYING' && !play.won && !play.lost) { paused = true; drawing = null; } });
 
 // ── START ─────────────────────────────────────────────────────────────────────
 layout();
