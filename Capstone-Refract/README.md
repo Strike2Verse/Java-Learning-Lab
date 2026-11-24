@@ -27,6 +27,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 
 ### Home screen
 - Fills the whole browser window and resizes with it
+- Works on phones and tablets: the whole game scales to fit any screen, stays sharp on high-density displays, and has bigger touch areas. Hold a phone sideways (landscape) — upright it shows a "rotate your device" note
 - Drafting-sheet look: paper texture, blueprint grid, edge rulers, pencil doodles, title block
 - A live laser beam bounces around the whole screen — off the screen edges, the title and the buttons
 - **Drag the mirrors** to steer the beam; drag a mirror's end to rotate it, drag its middle to move it
@@ -77,7 +78,7 @@ Steer it, bounce by bounce, until it lands in the **goal hole** on the right wal
 | Click `HOW TO PLAY` | Open the how-to-play screen |
 | Click `← LEVELS` (play screen) | Return to the level select screen |
 | Click `NEXT LEVEL` / `PLAY AGAIN` / `LEVELS` (after winning) | Go to the next level (or restart from level 1 after the last) / return to the level select screen |
-| `P` / `Space` (play screen) | Pause / resume |
+| `P` / `Space` / **PAUSE** button (play screen) | Pause / resume (tap or click to continue) |
 | `ESC` | Play screen → level select · level select / how-to → home screen |
 
 ---
@@ -108,6 +109,7 @@ No installation. No compilation. Just:
 | 10 | Synthesised sound (Web Audio): musical bounces, star chimes, portal whoosh, win fanfare, looping background song that gets faster and fuller each level, `M` to mute | ✅ Done |
 | 11 | Polish: particle bursts, screen shake on misses, fade transitions, pause (`P` / Space, auto-pauses when the window loses focus) | ✅ Done |
 | 12 | Level select screen: 8 cards with hand-drawn icons, best star rating per level saved in the browser, levels unlock one by one, laser loops around the cards | ✅ Done |
+| 13 | Responsive: game scales to any screen size, sharp on phone displays, bigger touch targets, on-screen PAUSE button, "rotate your device" note in portrait | ✅ Done |
 
 ---
 
@@ -125,6 +127,7 @@ Capstone-Refract/
 | HTML5 Canvas 2D API | All rendering |
 | `requestAnimationFrame` | 60 fps game loop |
 | Window `resize` handling | Full-window canvas and layout |
+| Virtual resolution (`setTransform`, `devicePixelRatio`) | One logical game size scaled to any screen, crisp on phones |
 | Vector reflection math | Beam bouncing off mirrors, tiles, title and buttons |
 | Segment intersection geometry | Beam–mirror and beam–tile collision |
 | Pointer events | Dragging mirrors and drawing tiles (mouse and touch) |
