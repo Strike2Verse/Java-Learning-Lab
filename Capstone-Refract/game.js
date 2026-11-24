@@ -8,10 +8,43 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 
-// Canvas fills the whole browser window; W/H are updated on resize.
-let W = window.innerWidth, H = window.innerHeight;
-canvas.width  = W;
-canvas.height = H;
+// Small labels (9–13px) would shrink to ~6px on a phone. Whenever SCALE < 1, every font set on
+// the context is raised so it is about 10 screen px, but never by more than 1.5x (so labels still fit).
+const fontProp = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'font');
+Object.defineProperty(ctx, 'font', {
+  configurable: true,
+  get() { return fontProp.get.call(ctx); },
+  set(v) {
+    if (SCALE < 1) v = String(v).replace(/(\d+(?:\.\d+)?)px/, (m, n) => {
+      n = +n;
+      return Math.max(n, Math.min(n * 1.5, 10 / SCALE)).toFixed(1) + 'px';
+    });
+    fontProp.set.call(ctx, v);
+  },
+});
+
+// The game is drawn in a "logical" space W x H that is never smaller than MIN_W x MIN_H.
+// On small screens the whole picture is scaled down (SCALE < 1) so every screen fits on
+// any device; on big screens SCALE stays 1. DPR keeps lines and text sharp on phones.
+const MIN_W = 940, MIN_H = 640;
+let W = 0, H = 0, SCALE = 1, DPR = 1;
+let tooNarrow = false;               // portrait phone — a "rotate your device" note covers the game
+
+/** Sizes the canvas to the real window and works out W, H and SCALE */
+function fitCanvas() {
+  const vw = window.innerWidth, vh = window.innerHeight;
+  SCALE = Math.min(1, vw / MIN_W, vh / MIN_H);
+  DPR   = Math.min(window.devicePixelRatio || 1, 2);      // 3x phone screens: 2x is sharp enough and much lighter
+  W = vw / SCALE;
+  H = vh / SCALE;
+  canvas.style.width  = vw + 'px';
+  canvas.style.height = vh + 'px';
+  canvas.width  = Math.round(vw * DPR);                   // resizing a canvas clears it; loop redraws next frame
+  canvas.height = Math.round(vh * DPR);
+  tooNarrow = vh > vw && vw < 640;
+  document.body.classList.toggle('rotate', tooNarrow);
+}
+fitCanvas();
 
 // ── PALETTE ─────────────────────────────────────────────────────────────────
 const C = {
@@ -350,12 +383,14 @@ function layout() {
 }
 
 let resizeTimer = null;
-window.addEventListener('resize', () => {
-  W = canvas.width  = window.innerWidth;     // resizing a canvas clears it; loop redraws next frame
-  H = canvas.height = window.innerHeight;
+function onWindowChange() {
+  fitCanvas();
+  if (tooNarrow && state === 'PLAYING' && !play.won && !play.lost) { paused = true; drawing = null; }
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(layout, 120);     // paper texture is heavy — rebuild once resizing stops
-});
+}
+window.addEventListener('resize', onWindowChange);
+window.addEventListener('orientationchange', onWindowChange);   // some phones fire this before (or instead of) resize
 
 // ── VECTOR / GEOMETRY ────────────────────────────────────────────────────────
 function segmentIntersect(ax,ay,bx,by, cx,cy,dx,dy) {
@@ -1150,7 +1185,7 @@ function drawPause() {
   ctx.fillText('PAUSED', W/2, H/2 - 10);
   ctx.fillStyle = C.inkMid;
   ctx.font = `22px 'Patrick Hand', cursive`;
-  ctx.fillText('press P, Space or click to continue', W/2, H/2 + 30);
+  ctx.fillText('tap or click to continue  (or press P / Space)', W/2, H/2 + 30);
   ctx.restore();
 }
 
@@ -1386,12 +1421,13 @@ function distToSegment(px, py, x1, y1, x2, y2) {
 
 /** Which mirror (and which part of it) is under the point? */
 function pickMirror(px, py) {
+  const endR = Math.max(16, 22 / SCALE), lineR = Math.max(12, 16 / SCALE);   // bigger grab area on small screens
   for (const m of mirrors) {
-    if (Math.hypot(px - m.x1, py - m.y1) < 16) return { m, mode: 'p1' };
-    if (Math.hypot(px - m.x2, py - m.y2) < 16) return { m, mode: 'p2' };
+    if (Math.hypot(px - m.x1, py - m.y1) < endR) return { m, mode: 'p1' };
+    if (Math.hypot(px - m.x2, py - m.y2) < endR) return { m, mode: 'p2' };
   }
   for (const m of mirrors) {
-    if (distToSegment(px, py, m.x1, m.y1, m.x2, m.y2) < 12) return { m, mode: 'move' };
+    if (distToSegment(px, py, m.x1, m.y1, m.x2, m.y2) < lineR) return { m, mode: 'move' };
   }
   return null;
 }
@@ -1769,6 +1805,8 @@ function drawPlaying() {
   drawPlayMessage();
   const b = PLAY_MENU_BTN();
   drawBtn(b.x, b.y, b.w, b.h, '←  LEVELS', C.inkMid);
+  const pb = PLAY_PAUSE_BTN();
+  drawBtn(pb.x, pb.y, pb.w, pb.h, 'II  PAUSE', C.inkMid);
   drawHearts();
   if (play.won) drawWin();
   else if (play.lost) drawLost();
@@ -2136,7 +2174,7 @@ function drawHUD() {
   ctx.fillStyle = C.inkLight;
   ctx.font      = `14px 'Patrick Hand', cursive`;
   ctx.textAlign = 'center';
-  ctx.fillText(`click + drag to draw a tile  ·  only ${LEVEL.tiles} at a time — the oldest disappears`, INT.x + INT.w / 2, INT.y + INT.h - 14);
+  ctx.fillText(`drag to draw a tile  ·  only ${LEVEL.tiles} at a time — the oldest disappears`, INT.x + INT.w / 2, INT.y + INT.h - 14);
   ctx.restore();
 
   const hx = PLAY.x, hy = PLAY.y + PLAY.h + 8;
@@ -2597,6 +2635,7 @@ function drawLevels() {
 // ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 function loop() {
   frame++;
+  ctx.setTransform(DPR * SCALE, 0, 0, DPR * SCALE, 0, 0);   // draw in logical units; the canvas does the scaling
   sfx.music(state === 'PLAYING' ? LEVEL.num : 1, state === 'PLAYING' && play.won);
   drawPaper();
   drawGrid();
@@ -2626,7 +2665,7 @@ function loop() {
   if (state === 'PLAYING') {
     const B = WIN_BTNS();
     if (play.won || (play.lost && play.lostT > 55)) cur = (inRect(mouse, B.again) || inRect(mouse, B.menu)) ? 'pointer' : 'default';
-    else cur = inRect(mouse, PLAY_MENU_BTN()) ? 'pointer' : 'crosshair';
+    else cur = (inRect(mouse, PLAY_MENU_BTN()) || inRect(mouse, PLAY_PAUSE_BTN())) ? 'pointer' : 'crosshair';
   }
   else if (state === 'MENU') {
     const R = menuRects();
@@ -2652,8 +2691,14 @@ function toCanvas(e) {
 }
 
 function inRect(p, r) {
-  return p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+  // Buttons that would be smaller than a finger (~40 screen px) get a bigger invisible hit area
+  const min = 40 / SCALE;
+  const ex = Math.max(0, (min - r.w) / 2), ey = Math.max(0, (min - r.h) / 2);
+  return p.x >= r.x - ex && p.x <= r.x + r.w + ex && p.y >= r.y - ey && p.y <= r.y + r.h + ey;
 }
+
+/** Pause button (top right of the play field) — phones have no P or Space key */
+const PLAY_PAUSE_BTN = () => ({ x: PLAY.x + PLAY.w - 110, y: 8, w: 110, h: 32 });
 
 canvas.addEventListener('pointermove', e => {
   const p = toCanvas(e);
@@ -2725,6 +2770,9 @@ canvas.addEventListener('click', e => {
     } else if (inRect(p, PLAY_MENU_BTN())) {
       sfx.click();
       goTo('LEVELS');
+    } else if (inRect(p, PLAY_PAUSE_BTN())) {
+      sfx.click();
+      paused = true;  drawing = null;
     }
   }
 });

@@ -7,14 +7,42 @@ html, body {
   overflow: hidden;
   background: #F6F1E9;   /* same cream as the canvas paper */
   font-family: 'Patrick Hand', cursive;
+  overscroll-behavior: none;                /* no pull-to-refresh while drawing */
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* ── CANVAS ──────────────────────────────────────────────────────────────── */
-/* Fills the whole window — game.js keeps its pixel size in sync on resize */
+/* Fills the whole window — game.js sets its CSS size, pixel size and drawing scale on resize */
 #gameCanvas {
   display: block;
-  width: 100vw;
-  height: 100vh;
+  position: fixed; top: 0; left: 0;
+  width: 100%;
+  height: 100%;
   cursor: crosshair;
   touch-action: none;
+}
+
+/* ── "ROTATE YOUR DEVICE" NOTE (portrait phones) ─────────────────────────── */
+#rotateHint {
+  display: none;
+  position: fixed; inset: 0; z-index: 10;
+  flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+  background: #F6F1E9;
+  color: #1E1E1E;
+  text-align: center;
+  padding: 24px;
+}
+body.rotate #rotateHint { display: flex; }
+#rotateHint p     { font-family: 'Caveat', cursive; font-weight: 700; font-size: 38px; }
+#rotateHint small { font-size: 18px; color: #555; }
+#rotateHint .phone {
+  width: 54px; height: 90px;
+  border: 4px solid #1E1E1E; border-radius: 10px;
+  animation: turn 2.4s ease-in-out infinite;
+}
+@keyframes turn {
+  0%, 20%   { transform: rotate(0deg); }
+  60%, 100% { transform: rotate(-90deg); }
 }

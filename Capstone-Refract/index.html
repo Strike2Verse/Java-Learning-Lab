@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#F6F1E9" />
+  <meta name="mobile-web-app-capable" content="yes" />
   <title>Refract — Draw the path. Bend the light.</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,6 +13,12 @@
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <!-- Shown by game.js (body.rotate) when a phone is held upright: the play field is wide -->
+  <div id="rotateHint">
+    <div class="phone"></div>
+    <p>Please rotate your device</p>
+    <small>Refract plays best in landscape</small>
+  </div>
   <script src="game.js"></script>
 </body>
 </html>
